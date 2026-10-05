@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WIfI Calculator</title>
+<meta name="description" content="SVS WIfI threatened-limb staging: clinical stage, 1-year amputation risk and revascularisation benefit, per the 2019 Global Vascular Guidelines.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: an instrument panel. Three grading rows on the left, a stage dial and its meaning on the right; stacks dial-first on narrow embeds. */
+:root {
+  --bg: #F6F5F3;
+  --surface: #FFFFFF;
+  --surface-2: #EFEDEA;
+  --line: #E2DED9;
+  --fg: #1F1B18;
+  --muted: #6B635C;
+  --accent: #C2561A;
+  --accent-soft: #F8E6DA;
+  --s1: #3C8F5E; --s2: #A98310; --s3: #C8641A; --s4: #C23B29; --s5: #5E6678;
+  --shadow: 0 1px 2px rgba(40,25,10,.06), 0 6px 24px -8px rgba(40,25,10,.12);
+  --f-display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #15120F; --surface: #1E1A16; --surface-2: #27221D; --line: #332C26;
+  --fg: #F1EBE4; --muted: #A59A8F; --accent: #F08A4B; --accent-soft: #3A2516;
+  --s1: #74C493; --s2: #E5C65C; --s3: #F09847; --s4: #EE6A55; --s5: #8D96A9;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -12px rgba(0,0,0,.6);
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #15120F; --surface: #1E1A16; --surface-2: #27221D; --line: #332C26;
+  --fg: #F1EBE4; --muted: #A59A8F; --accent: #F08A4B; --accent-soft: #3A2516;
+  --s1: #74C493; --s2: #E5C65C; --s3: #F09847; --s4: #EE6A55; --s5: #8D96A9;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -12px rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 15px/1.5 var(--f-body);
+  padding: 20px 16px 28px;
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; }
+
+/* Header */
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; align-items: baseline; gap: 4px 10px; flex-wrap: wrap; }
+h1 { font: 700 26px/1.1 var(--f-display); letter-spacing: -.01em; margin: 0; white-space: nowrap; }
+h1 .w { color: var(--accent); }
+.sub { color: var(--muted); font-size: 13px; }
+.hint { color: var(--muted); font-size: 13px; }
+@media (max-width: 720px) { .hint { display: none; } }
+
+/* Main grid */
+.main { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-areas: "rows sum" "rows adv"; grid-template-rows: auto 1fr; align-items: start; }
+.rows { grid-area: rows; } .result { grid-area: sum; } .advice { grid-area: adv; }
+@media (max-width: 720px) { .main { grid-template-columns: minmax(0,1fr); grid-template-areas: "sum" "rows" "adv"; grid-template-rows: auto; } }
+
+.panel { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; }
+
+/* Grading rows */
+.rows { display: grid; gap: 18px; }
+.row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.row-title { display: flex; align-items: baseline; gap: 8px; }
+.row-title .code { font: 500 13px var(--f-mono); color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; }
+.row-title .name { font: 600 15px var(--f-body); }
+.info {
+  border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  font-size: 12.5px; padding: 4px 8px; border-radius: 8px; display: inline-flex; gap: 6px; align-items: center;
+}
+.info:hover { background: var(--surface-2); color: var(--fg); }
+.info svg { transition: transform .25s ease; }
+.info[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+.chips { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+.chip {
+  position: relative; text-align: left; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px;
+  padding: 9px 10px 10px; min-height: 74px;
+  display: flex; flex-direction: column; gap: 3px;
+  transition: border-color .18s, background-color .18s, transform .12s ease;
+}
+.chip:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
+.chip:active { transform: scale(.97); }
+.chip .g { font: 700 22px/1 var(--f-display); }
+.chip .l { font-size: 12px; line-height: 1.3; color: var(--muted); }
+.chip[aria-checked="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.chip[aria-checked="true"] .g { color: var(--accent); }
+.chip[aria-checked="true"] .l { color: var(--fg); }
+.chip:focus-visible, .info:focus-visible, .seg button:focus-visible, .cell:focus-visible, .btn:focus-visible, .switch:focus-visible {
+  outline: 2.5px solid var(--accent); outline-offset: 2px;
+}
+@media (max-width: 420px) { .chip { min-height: 70px; padding: 8px; } .chip .l { font-size: 11.5px; } }
+
+.criteria { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s ease; }
+.criteria.open { grid-template-rows: 1fr; }
+.criteria > div { overflow: hidden; }
+.crit-inner { margin-top: 10px; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 13px; }
+.crit-inner dl { margin: 0; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 6px 12px; }
+.crit-inner dt { font: 500 12.5px var(--f-mono); color: var(--accent); }
+.crit-inner dd { margin: 0; }
+.crit-inner p { margin: 8px 0 0; color: var(--muted); }
+.crit-inner table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+.crit-inner th, .crit-inner td { text-align: left; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--line); }
+.crit-inner th { font-weight: 600; font-size: 12px; color: var(--muted); }
+.crit-inner tr:last-child td { border-bottom: 0; }
+.tscroll { overflow-x: auto; }
+
+/* Result */
+.result, .advice { display: grid; gap: 14px; --stage: var(--s1); }
+.hero { display: flex; align-items: center; gap: 18px; }
+.dial { position: relative; width: 132px; height: 132px; flex: none; }
+.dial svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.dial .track { stroke: var(--surface-2); }
+.dial .arc { stroke: var(--stage); transition: stroke-dashoffset .5s cubic-bezier(.3,.7,.2,1), stroke .35s; }
+.dial .glow { stroke: var(--stage); opacity: 0; transition: stroke .35s; }
+.dial.pulse .glow { animation: pulse .7s ease-out; }
+@keyframes pulse { 0% { opacity: .45; stroke-width: 10; } 100% { opacity: 0; stroke-width: 26; } }
+.dial .num { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.dial .num b { font: 700 48px/1 var(--f-display); color: var(--stage); transition: color .35s; display: block; }
+.dial .num span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.hero-text { min-width: 0; display: grid; gap: 6px; }
+.risk { font: 700 22px/1.15 var(--f-display); text-wrap: balance; margin: 0; }
+.risk em { font-style: normal; color: var(--stage); transition: color .35s; }
+.pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill { font: 500 13px var(--f-mono); padding: 3px 8px; border-radius: 7px; background: var(--surface-2); }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.stat { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; }
+.stat .k { font-size: 11.5px; color: var(--muted); letter-spacing: .04em; }
+.stat .v { font: 700 24px/1.15 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat .v small { display: block; font: 500 12px/1.35 var(--f-body); color: var(--muted); margin-top: 2px; }
+.stat .v .lvl { color: var(--lvl); transition: color .35s; }
+
+.rec { border-left: 3px solid var(--stage); padding: 2px 0 2px 12px; transition: border-color .35s; }
+.rec h3 { margin: 0 0 3px; font: 600 14px var(--f-body); }
+.rec p { margin: 0; font-size: 13.5px; }
+.badge { display: inline-block; font: 500 11px var(--f-mono); padding: 1px 6px; border-radius: 5px; background: var(--surface-2); color: var(--muted); margin-left: 4px; vertical-align: 1px; white-space: nowrap; }
+.flags { display: grid; gap: 8px; }
+.flag { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; background: var(--surface-2); border-radius: 10px; padding: 9px 11px; animation: rise .3s ease both; }
+.flag i { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; background: var(--fc, var(--accent)); }
+@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+.actions { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--muted); background: transparent; border: 0; padding: 4px 2px; border-radius: 8px; }
+.switch .t { width: 34px; height: 20px; border-radius: 99px; background: var(--line); position: relative; transition: background .2s; }
+.switch .t::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+.switch[aria-checked="true"] .t { background: var(--s5); }
+.switch[aria-checked="true"] .t::after { transform: translateX(14px); }
+.switch[aria-checked="true"] { color: var(--fg); }
+.btn { border: 0; cursor: pointer; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 8px 14px; font-weight: 600; font-size: 13px; transition: transform .12s; }
+.btn:active { transform: scale(.97); }
+
+/* Matrix */
+.matrix-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.matrix-head h2 { margin: 0; font: 700 17px var(--f-display); }
+.matrix-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+.seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; }
+.seg button { border: 0; background: transparent; cursor: pointer; padding: 6px 11px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.grids { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+@media (max-width: 720px) { .grids { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.mini h4 { margin: 0 0 6px; font: 500 12px var(--f-mono); color: var(--muted); }
+.mini.cur h4 { color: var(--accent); }
+.mgrid { display: grid; grid-template-columns: 22px repeat(4, minmax(0,1fr)); gap: 3px; font-size: 10.5px; }
+.mgrid .ax { color: var(--muted); display: grid; place-items: center; font-family: var(--f-mono); }
+.cell {
+  aspect-ratio: 1; max-width: 100%; border: 0; border-radius: 6px; cursor: pointer; padding: 0;
+  background: color-mix(in oklab, var(--c) 36%, var(--surface));
+  color: color-mix(in oklab, var(--c) 70%, var(--fg));
+  font: 700 12px var(--f-display);
+  transition: background-color .3s, transform .12s, box-shadow .2s;
+}
+.cell:hover { transform: scale(1.08); }
+.cell.on { background: var(--c); color: var(--surface); box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--c); }
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+
+footer { font-size: 12px; color: var(--muted); display: grid; gap: 6px; padding: 0 4px; }
+footer p { margin: 0; max-width: 90ch; }
+
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; transition: opacity .2s, transform .2s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 420px) { .dial { width: 108px; height: 108px; } .dial .num b { font-size: 40px; } .risk { font-size: 19px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><span class="w">WIfI</span> Calculator</h1>
+      <span class="sub">SVS threatened-limb staging</span>
+    </div>
+    <span class="hint">Tap a grade in each row</span>
+  </header>
+
+  <div class="main">
+    <section class="panel rows" aria-label="Grades">
+      <div class="row" data-k="w">
+        <div class="row-head">
+          <div class="row-title"><span class="code">W</span><span class="name">Wound</span></div>
+          <button class="info" id="info-w" aria-expanded="false" aria-controls="crit-w">Criteria <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+        </div>
+        <div class="chips" role="radiogroup" aria-label="Wound grade"></div>
+        <div class="criteria" id="crit-w"><div><div class="crit-inner">
+          <dl>
+            <dt>W0</dt><dd>No ulcer, no gangrene. Ischaemic rest pain (typical symptoms plus ischaemia grade 3).</dd>
+            <dt>W1</dt><dd>Small, shallow ulcer on distal leg or foot; no exposed bone unless limited to distal phalanx. No gangrene. Salvageable with 1–2 digit amputation or skin cover.</dd>
+            <dt>W2</dt><dd>Deeper ulcer with exposed bone, joint or tendon, generally not the heel; or shallow heel ulcer without calcaneal involvement. Gangrene limited to digits. Salvageable with 3 or more digit amputations or standard TMA.</dd>
+            <dt>W3</dt><dd>Extensive deep ulcer of forefoot and/or midfoot; or deep, full-thickness heel ulcer with or without calcaneal involvement. Extensive forefoot/midfoot gangrene or full-thickness heel necrosis. Needs complex reconstruction (non-traditional TMA, Chopart, Lisfranc) or flap cover.</dd>
+          </dl>
+          <p>GVG 2019 Table 3.2</p>
+        </div></div></div>
+      </div>
+
+      <div class="row" data-k="i">
+        <div class="row-head">
+          <div class="row-title"><span class="code">I</span><span class="name">Ischaemia</span></div>
+          <button class="info" id="info-i" aria-expanded="false" aria-controls="crit-i">Criteria <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+        </div>
+        <div class="chips" role="radiogroup" aria-label="Ischaemia grade"></div>
+        <div class="criteria" id="crit-i"><div><div class="crit-inner">
+          <div class="tscroll"><table>
+            <thead><tr><th>Grade</th><th>ABI</th><th>Ankle pressure</th><th>Toe pressure / TcPO₂</th></tr></thead>
+            <tbody>
+              <tr><td>I0</td><td>≥0.80</td><td>&gt;100 mmHg</td><td>≥60 mmHg</td></tr>
+              <tr><td>I1</td><td>0.60–0.79</td><td>70–100 mmHg</td><td>40–59 mmHg</td></tr>
+              <tr><td>I2</td><td>0.40–0.59</td><td>50–70 mmHg</td><td>30–39 mmHg</td></tr>
+              <tr><td>I3</td><td>≤0.39</td><td>&lt;50 mmHg</td><td>&lt;30 mmHg</td></tr>
+            </tbody>
+          </table></div>
+          <p>Patients with diabetes should have toe pressures. If toe pressure and ABI give different grades, toe pressure decides. Use TP or TcPO₂ if the ABI is incompressible (&gt;1.3). A flat or minimally pulsatile forefoot PVR is grade 3. GVG 2019 Table 3.3</p>
+        </div></div></div>
+      </div>
+
+      <div class="row" data-k="f">
+        <div class="row-head">
+          <div class="row-title"><span class="code">fI</span><span class="name">Foot infection</span></div>
+          <button class="info" id="info-f" aria-expanded="false" aria-controls="crit-f">Criteria <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+        </div>
+        <div class="chips" role="radiogroup" aria-label="Foot infection grade"></div>
+        <div class="criteria" id="crit-f"><div><div class="crit-inner">
+          <dl>
+            <dt>fI0</dt><dd>No symptoms or signs of infection.</dd>
+            <dt>fI1</dt><dd>Two or more of: local swelling or induration; erythema &gt;0.5 to 2 cm around the ulcer; local tenderness or pain; local warmth; purulent discharge. Skin and subcutaneous tissue only, no systemic signs. Exclude trauma, gout, acute Charcot, fracture, thrombosis, venous stasis.</dd>
+            <dt>fI2</dt><dd>Local infection with erythema &gt;2 cm, or involving deeper structures (abscess, osteomyelitis, septic arthritis, fasciitis). No SIRS.</dd>
+            <dt>fI3</dt><dd>Local infection with two or more SIRS signs: temperature &gt;38 °C or &lt;36 °C; HR &gt;90; RR &gt;20 or PaCO₂ &lt;32 mmHg; WCC &gt;12,000 or &lt;4,000/mm³ or 10% bands.</dd>
+          </dl>
+          <p>Matches IDSA/PEDIS uninfected, mild, moderate, severe. GVG 2019 Table 3.4</p>
+        </div></div></div>
+      </div>
+    </section>
+
+    <section class="panel result" aria-label="Result" id="result">
+      <div class="hero">
+        <div class="dial" id="dial">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="track" cx="60" cy="60" r="50" fill="none" stroke-width="10"/>
+            <circle class="glow" cx="60" cy="60" r="50" fill="none" stroke-width="10"/>
+            <circle class="arc" id="arc" cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="235.6"/>
+          </svg>
+          <div class="num"><div><span>Stage</span><b id="stageNum">1</b></div></div>
+        </div>
+        <div class="hero-text">
+          <p class="risk" id="riskText"><em>Very low</em> amputation risk</p>
+          <div class="pills" id="pills"></div>
+        </div>
+      </div>
+
+      <div class="stats" id="stats">
+        <div class="stat"><div class="k">1-yr major amputation</div><div class="v" id="ampV">0%<small>median</small></div></div>
+        <div class="stat"><div class="k">Benefit of revascularisation</div><div class="v" id="benV"><span class="lvl">Very low</span></div></div>
+      </div>
+      <div class="sr" aria-live="polite" id="live"></div>
+    </section>
+
+    <section class="panel advice" aria-label="What it means" id="advice">
+      <div class="rec" id="rec"></div>
+      <div class="flags" id="flags"></div>
+
+      <div class="actions">
+        <button class="switch" id="unsalv" role="switch" aria-checked="false"><span class="t" aria-hidden="true"></span>Unsalvageable foot</button>
+        <button class="btn" id="copy">Copy summary</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-label="Matrix">
+    <div class="matrix-head">
+      <div>
+        <h2>The whole matrix</h2>
+        <p>Rows W0–3, columns I0–3, one grid per foot infection grade. Tap any cell to jump to it.</p>
+      </div>
+      <div class="seg" role="group" aria-label="Matrix view">
+        <button id="viewAmp" aria-pressed="true">Amputation risk</button>
+        <button id="viewBen" aria-pressed="false">Revasc benefit</button>
+      </div>
+    </div>
+    <div class="grids" id="grids"></div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <footer>
+    <p>Sources: Conte MS et al. Global Vascular Guidelines on CLTI, Eur J Vasc Endovasc Surg 2019;58(1S); Tables 1.2, 3.2–3.5 and Recs 6.7–6.14, 6.38, 7.6. Revascularisation benefit matrix from Mills JL et al., J Vasc Surg 2014;59:220 (Rutherford 11e Fig 104.2B), which assumes infection is controlled first.</p>
+    <p>GVG Table 3.5 omits W0 I1 fI2 and lists W0 I2 fI1 under two stages. Those two cells follow the original SVS matrix (stage 3 and stage 2). WIfI is not validated in Aboriginal and Torres Strait Islander people (2021 Australian PAD guideline, Rec 5 implementation note). A revision aid, not a substitute for clinical judgement.</p>
+  </footer>
+</div>
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(function () {
+  // Clinical stage, indexed [fI][W] -> string over I0..I3. GVG 2019 Table 3.5, gaps resolved by Mills 2014 Fig A.
+  var AMP_SRC = [
+    ["1122", "1123", "2334", "3444"],
+    ["1223", "1233", "2344", "3444"],
+    ["2333", "2344", "3444", "4444"],
+    ["3444", "3444", "4444", "4444"]
+  ];
+  // Likelihood of benefit from revascularisation (1 VL .. 4 H), Mills 2014 Fig B, same indexing.
+  var BEN_SRC = [
+    ["1123", "1234", "1344", "1344"],
+    ["1224", "1344", "1344", "1344"],
+    ["1234", "1344", "1444", "1344"],
+    ["1334", "1444", "1444", "1444"]
+  ];
+  function look(src, w, i, f) { return +src[f][w].charAt(i); }
+  window.WIFI = { stage: function (w, i, f) { return look(AMP_SRC, w, i, f); }, benefit: function (w, i, f) { return look(BEN_SRC, w, i, f); } };
+
+  var RISK = ["", "Very low", "Low", "Moderate", "High", "Unsalvageable"];
+  var LVL = ["", "Very low", "Low", "Moderate", "High"];
+  var AMP_MED = [null, 0, 9, 9.4, 29];
+  var AMP_MEAN = [null, 3.2, 7.0, 8.7, 23.3];
+
+  var LABELS = {
+    w: ["No wound<br>rest pain", "Small, shallow ulcer", "Deep ulcer or toe gangrene", "Extensive ulcer or gangrene"],
+    i: ["TP ≥60<br>ABI ≥0.80", "TP 40–59<br>ABI 0.6–0.79", "TP 30–39<br>ABI 0.4–0.59", "TP &lt;30<br>ABI ≤0.39"],
+    f: ["None", "Mild<br>≤2 cm", "Moderate<br>&gt;2 cm or deep", "Severe<br>SIRS"]
+  };
+  var PREFIX = { w: "W", i: "I", f: "fI" };
+  var NAMES = { w: "Wound", i: "Ischaemia", f: "Foot infection" };
+
+  var st = { w: 0, i: 0, f: 0, x: false };
+  var view = "amp";
+  var lastStage = null;
+
+  function readHash() {
+    var m = /^#w([0-3])i([0-3])f([0-3])(x?)$/.exec(location.hash || "");
+    if (m) { st.w = +m[1]; st.i = +m[2]; st.f = +m[3]; st.x = !!m[4]; }
+  }
+  function writeHash() {
+    var h = "#w" + st.w + "i" + st.i + "f" + st.f + (st.x ? "x" : "");
+    try { history.replaceState(null, "", h); } catch (e) {}
+  }
+
+  // Build chips
+  document.querySelectorAll(".row").forEach(function (row) {
+    var k = row.dataset.k, box = row.querySelector(".chips");
+    for (var g = 0; g < 4; g++) {
+      var b = document.createElement("button");
+      b.className = "chip"; b.type = "button";
+      b.setAttribute("role", "radio");
+      b.id = "chip-" + k + g;
+      b.dataset.k = k; b.dataset.g = g;
+      b.setAttribute("aria-label", NAMES[k] + " grade " + g + ": " + LABELS[k][g].replace(/<br>/g, ", ").replace(/&lt;/g, "<").replace(/&gt;/g, ">"));
+      b.innerHTML = '<span class="g">' + g + '</span><span class="l">' + LABELS[k][g] + '</span>';
+      b.addEventListener("click", function () { set(this.dataset.k, +this.dataset.g); });
+      b.addEventListener("keydown", chipKeys);
+      box.appendChild(b);
+    }
+    var info = row.querySelector(".info"), crit = row.querySelector(".criteria");
+    info.addEventListener("click", function () {
+      var open = info.getAttribute("aria-expanded") !== "true";
+      info.setAttribute("aria-expanded", open); crit.classList.toggle("open", open);
+    });
+  });
+
+  function chipKeys(e) {
+    var k = this.dataset.k, g = +this.dataset.g, n = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") n = Math.min(3, g + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") n = Math.max(0, g - 1);
+    else if (/^[0-3]$/.test(e.key)) n = +e.key;
+    if (n === null) return;
+    e.preventDefault(); set(k, n);
+    document.getElementById("chip-" + k + n).focus();
+  }
+
+  function set(k, g) { st[k] = g; render(); }
+
+  // Matrix
+  var grids = document.getElementById("grids");
+  for (var f = 0; f < 4; f++) {
+    var mini = document.createElement("div"); mini.className = "mini"; mini.dataset.f = f;
+    var html = '<h4>fI' + f + '</h4><div class="mgrid"><span></span>';
+    for (var i = 0; i < 4; i++) html += '<span class="ax">I' + i + '</span>';
+    for (var w = 0; w < 4; w++) {
+      html += '<span class="ax">W' + w + '</span>';
+      for (var i2 = 0; i2 < 4; i2++) html += '<button class="cell" type="button" data-w="' + w + '" data-i="' + i2 + '" data-f="' + f + '"></button>';
+    }
+    mini.innerHTML = html + "</div>";
+    grids.appendChild(mini);
+  }
+  grids.addEventListener("click", function (e) {
+    var c = e.target.closest(".cell"); if (!c) return;
+    st.w = +c.dataset.w; st.i = +c.dataset.i; st.f = +c.dataset.f; render();
+  });
+  document.getElementById("viewAmp").addEventListener("click", function () { view = "amp"; render(); });
+  document.getElementById("viewBen").addEventListener("click", function () { view = "ben"; render(); });
+
+  document.getElementById("unsalv").addEventListener("click", function () { st.x = !st.x; render(); });
+
+  function rec(stage, I) {
+    if (stage === 5) return { h: "Unsalvageable foot", t: "Stage 5 sits outside Table 3.5. It is most often due to wound extent or severity of infection; primary major amputation is the usual discussion.", b: "GVG Table 3.5 note" };
+    if (I === 0) return { h: "Do not revascularise", t: "No significant ischaemia. Exception: an isolated poorly perfused region with major tissue loss (W2–3) that can be targeted, when the wound grows or shrinks less than 50% in 4 weeks despite infection control, wound care and offloading.", b: "Rec 6.9 · GPS" };
+    if (stage === 1) return { h: "Do not revascularise yet", t: "Very-low-risk limb. Revascularise only if the wound grows or shrinks less than 50% in 4 weeks despite infection control, wound care and offloading.", b: "Rec 6.10 · 2C" };
+    if (stage === 4 && I >= 2) return { h: "Offer revascularisation", t: "Advanced limb threat with a significant perfusion deficit, in an average-risk patient.", b: "Rec 6.11 · 1C" };
+    if (I >= 2) return { h: "Consider revascularisation", t: "Intermediate limb threat with a significant perfusion deficit, in an average-risk patient.", b: "Rec 6.12 · 2C" };
+    if (stage === 4) return { h: "Consider revascularisation", t: "Advanced limb threat with moderate ischaemia, in an average-risk patient.", b: "Rec 6.13 · 2C" };
+    return { h: "Consider revascularisation if not healing", t: "Intermediate limb threat with moderate ischaemia. Revascularise if the wound grows or shrinks less than 50% in 4 weeks despite infection control, wound care and offloading.", b: "Rec 6.14 · 2C" };
+  }
+
+  function flags(stage) {
+    var out = [];
+    if (st.f === 3) out.push(["--s4", "Systemic infection. Start antibiotics. Deep space infection or wet gangrene needs urgent drainage and debridement (minor amputation if needed), then restaging before any revascularisation decision.", "Recs 6.7, 6.8 · GPS"]);
+    else if (st.f === 2) out.push(["--s3", "If there is deep space infection or wet gangrene, drain and debride urgently, start antibiotics, then restage.", "Recs 6.7, 6.8 · GPS"]);
+    if (st.i >= 2) out.push(["--accent", "Do not offer hyperbaric oxygen for limb salvage while severe ischaemia is uncorrected.", "Rec 7.6 · 1B"]);
+    if (st.w === 3) out.push(["--accent", "Consider angiosome-guided revascularisation for a major wound, especially midfoot or hindfoot, if the target artery path is available.", "Rec 6.38 · 2C"]);
+    return out;
+  }
+
+  var C = 2 * Math.PI * 50;
+  var ampTimer = null, shownAmp = 0;
+  function countTo(el, target, mean) {
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    cancelAnimationFrame(ampTimer);
+    function paint(v) { el.innerHTML = (target === 9.4 && v === target ? "9.4" : (Math.round(v * 10) / 10).toString()) + '%<small>median · mean ' + mean + '%</small>'; }
+    if (reduce || document.hidden) { shownAmp = target; paint(target); return; }
+    var from = shownAmp, t0 = performance.now(), dur = 450;
+    function step(t) {
+      var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      shownAmp = from + (target - from) * e; paint(p === 1 ? target : Math.round(shownAmp * 10) / 10);
+      if (p < 1) ampTimer = requestAnimationFrame(step);
+    }
+    ampTimer = requestAnimationFrame(step);
+    setTimeout(function () { if (shownAmp !== target) { shownAmp = target; paint(target); } }, dur + 120);
+  }
+
+  function render() {
+    var base = WIFI.stage(st.w, st.i, st.f);
+    var stage = st.x ? 5 : base;
+    var ben = WIFI.benefit(st.w, st.i, st.f);
+    var root = document.getElementById("result");
+    root.style.setProperty("--stage", "var(--s" + stage + ")");
+    document.getElementById("advice").style.setProperty("--stage", "var(--s" + stage + ")");
+
+    // chips
+    ["w", "i", "f"].forEach(function (k) {
+      for (var g = 0; g < 4; g++) {
+        var b = document.getElementById("chip-" + k + g), on = st[k] === g;
+        b.setAttribute("aria-checked", on); b.tabIndex = on ? 0 : -1;
+      }
+    });
+
+    // dial
+    var frac = stage === 5 ? 1 : stage / 4;
+    document.getElementById("arc").style.strokeDashoffset = (C * (1 - frac)).toFixed(2);
+    document.getElementById("stageNum").textContent = stage;
+    if (lastStage !== null && lastStage !== stage) {
+      var d = document.getElementById("dial"); d.classList.remove("pulse"); void d.offsetWidth; d.classList.add("pulse");
+    }
+    lastStage = stage;
+
+    document.getElementById("riskText").innerHTML = stage === 5 ? "<em>Unsalvageable</em> foot" : "<em>" + RISK[stage] + "</em> amputation risk";
+    document.getElementById("pills").innerHTML =
+      '<span class="pill">W' + st.w + '</span><span class="pill">I' + st.i + '</span><span class="pill">fI' + st.f + '</span>';
+
+    var ampV = document.getElementById("ampV");
+    if (stage === 5) { cancelAnimationFrame(ampTimer); ampV.innerHTML = "n/a<small>not tabulated</small>"; shownAmp = 0; }
+    else countTo(ampV, AMP_MED[stage], AMP_MEAN[stage].toFixed(1));
+    var benV = document.getElementById("benV");
+    benV.style.setProperty("--lvl", "var(--s" + ben + ")");
+    benV.innerHTML = '<span class="lvl">' + LVL[ben] + '</span>' + (st.f >= 2 ? '<small>once infection is controlled</small>' : '');
+
+    var r = rec(stage, st.i);
+    document.getElementById("rec").innerHTML = '<h3>' + r.h + ' <span class="badge">' + r.b + '</span></h3><p>' + r.t + '</p>';
+    document.getElementById("flags").innerHTML = (stage === 5 ? [] : flags(stage)).map(function (f) {
+      return '<div class="flag" style="--fc: var(' + f[0] + ')"><i></i><span>' + f[1] + ' <span class="badge">' + f[2] + '</span></span></div>';
+    }).join("");
+
+    var sw = document.getElementById("unsalv"); sw.setAttribute("aria-checked", st.x);
+
+    // matrix
+    document.getElementById("viewAmp").setAttribute("aria-pressed", view === "amp");
+    document.getElementById("viewBen").setAttribute("aria-pressed", view === "ben");
+    grids.querySelectorAll(".mini").forEach(function (m) { m.classList.toggle("cur", +m.dataset.f === st.f); });
+    grids.querySelectorAll(".cell").forEach(function (c) {
+      var w = +c.dataset.w, i = +c.dataset.i, f = +c.dataset.f;
+      var v = view === "amp" ? WIFI.stage(w, i, f) : WIFI.benefit(w, i, f);
+      c.style.setProperty("--c", "var(--s" + v + ")");
+      c.textContent = view === "amp" ? v : ["", "VL", "L", "M", "H"][v];
+      var on = w === st.w && i === st.i && f === st.f;
+      c.classList.toggle("on", on);
+      c.setAttribute("aria-label", "W" + w + " I" + i + " fI" + f + ": " + (view === "amp" ? "stage " + v : LVL[v] + " revascularisation benefit"));
+      c.setAttribute("aria-pressed", on);
+    });
+    var lg = view === "amp" ? [1, 2, 3, 4].map(function (s) { return [s, "Stage " + s + " · " + RISK[s]]; })
+                            : [1, 2, 3, 4].map(function (s) { return [s, LVL[s]]; });
+    document.getElementById("legend").innerHTML = lg.map(function (x) { return '<span><i style="--c: var(--s' + x[0] + ')"></i>' + x[1] + '</span>'; }).join("");
+
+    document.getElementById("live").textContent = "W" + st.w + " I" + st.i + " fI" + st.f + ", " + (stage === 5 ? "stage 5, unsalvageable" : "clinical stage " + stage + ", " + RISK[stage].toLowerCase() + " amputation risk");
+    writeHash();
+  }
+
+  function summary() {
+    var base = WIFI.stage(st.w, st.i, st.f), ben = WIFI.benefit(st.w, st.i, st.f);
+    var code = "WIfI W" + st.w + " I" + st.i + " fI" + st.f;
+    if (st.x) return code + ", stage 5 (unsalvageable foot).";
+    return code + ", clinical stage " + base + " (" + RISK[base].toLowerCase() + " amputation risk; 1-yr major amputation median " + AMP_MED[base] + "%, GVG 2019). Revascularisation benefit: " + LVL[ben].toLowerCase() + ".";
+  }
+  function toast(msg) {
+    var t = document.getElementById("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.classList.remove("show"); }, 1500);
+  }
+  document.getElementById("copy").addEventListener("click", function () {
+    var s = summary();
+    function fallback() {
+      var ta = document.createElement("textarea"); ta.value = s; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta); toast(ok ? "Copied" : "Copy blocked here. Select the text manually.");
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(s).then(function () { toast("Copied"); }, fallback);
+    else fallback();
+  });
+
+  window.addEventListener("hashchange", function () { readHash(); render(); });
+  readHash();
+  render();
+})();
+</script>
+</body>
+</html>
