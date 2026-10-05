@@ -41,15 +41,16 @@
   color-scheme: dark;
 }
 *, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg); color: var(--fg);
   font: 15px/1.5 var(--f-body);
-  padding: 20px 16px 28px;
+  padding: 14px 16px 16px;
   -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; color: inherit; }
-.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; }
+.wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 14px; }
 
 /* Header */
 .top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
@@ -57,18 +58,17 @@ button { font: inherit; color: inherit; }
 h1 { font: 700 26px/1.1 var(--f-display); letter-spacing: -.01em; margin: 0; white-space: nowrap; }
 h1 .w { color: var(--accent); }
 .sub { color: var(--muted); font-size: 13px; }
-.hint { color: var(--muted); font-size: 13px; }
-@media (max-width: 720px) { .hint { display: none; } }
+
 
 /* Main grid */
-.main { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-areas: "rows sum" "rows adv"; grid-template-rows: auto 1fr; align-items: start; }
+.main { display: grid; gap: 14px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-areas: "rows sum" "rows adv"; grid-template-rows: auto 1fr; align-items: start; }
 .rows { grid-area: rows; } .result { grid-area: sum; } .advice { grid-area: adv; }
-@media (max-width: 720px) { .main { grid-template-columns: minmax(0,1fr); grid-template-areas: "sum" "rows" "adv"; grid-template-rows: auto; } }
+@media (max-width: 600px) { .main { grid-template-columns: minmax(0,1fr); grid-template-areas: "sum" "rows" "adv"; grid-template-rows: auto; } }
 
-.panel { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 18px; }
+.panel { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 16px; }
 
 /* Grading rows */
-.rows { display: grid; gap: 18px; }
+.rows { display: grid; gap: 14px; align-content: start; }
 .row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .row-title { display: flex; align-items: baseline; gap: 8px; }
 .row-title .code { font: 500 13px var(--f-mono); color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; }
@@ -85,7 +85,7 @@ h1 .w { color: var(--accent); }
 .chip {
   position: relative; text-align: left; cursor: pointer;
   border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px;
-  padding: 9px 10px 10px; min-height: 74px;
+  padding: 8px 10px 9px; min-height: 66px;
   display: flex; flex-direction: column; gap: 3px;
   transition: border-color .18s, background-color .18s, transform .12s ease;
 }
@@ -101,10 +101,14 @@ h1 .w { color: var(--accent); }
 }
 @media (max-width: 420px) { .chip { min-height: 70px; padding: 8px; } .chip .l { font-size: 11.5px; } }
 
-.criteria { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .28s ease; }
-.criteria.open { grid-template-rows: 1fr; }
-.criteria > div { overflow: hidden; }
-.crit-inner { margin-top: 10px; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 13px; }
+.criteria { display: none; position: fixed; inset: 0; z-index: 20; padding: 16px; place-items: center; background: color-mix(in oklab, var(--bg) 55%, transparent); backdrop-filter: blur(3px); }
+.criteria.open { display: grid; animation: fade .18s ease; }
+.criteria > div { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--surface); border-radius: 16px; box-shadow: var(--shadow), 0 20px 60px -20px rgba(0,0,0,.5); animation: rise .22s ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.crit-inner { padding: 14px 16px 16px; font-size: 13.5px; }
+.crit-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; font: 700 16px var(--f-display); }
+.x { border: 0; cursor: pointer; background: var(--surface-2); border-radius: 8px; padding: 5px 10px; font-size: 12.5px; font-weight: 600; }
+.x:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 .crit-inner dl { margin: 0; display: grid; grid-template-columns: auto minmax(0,1fr); gap: 6px 12px; }
 .crit-inner dt { font: 500 12.5px var(--f-mono); color: var(--accent); }
 .crit-inner dd { margin: 0; }
@@ -149,7 +153,7 @@ h1 .w { color: var(--accent); }
 .flag i { flex: none; width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; background: var(--fc, var(--accent)); }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-.actions { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.actions { border-top: 1px solid var(--line); padding-top: 12px; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--muted); background: transparent; border: 0; padding: 4px 2px; border-radius: 8px; }
 .switch .t { width: 34px; height: 20px; border-radius: 99px; background: var(--line); position: relative; transition: background .2s; }
 .switch .t::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); transition: transform .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
@@ -158,6 +162,12 @@ h1 .w { color: var(--accent); }
 .switch[aria-checked="true"] { color: var(--fg); }
 .btn { border: 0; cursor: pointer; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 8px 14px; font-weight: 600; font-size: 13px; transition: transform .12s; }
 .btn:active { transform: scale(.97); }
+.btns { display: flex; gap: 8px; }
+.ghost { display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); background: transparent; cursor: pointer; border-radius: 10px; padding: 6.5px 12px; font-weight: 600; font-size: 13px; color: var(--muted); transition: transform .12s, color .15s, border-color .15s; }
+.ghost:hover { color: var(--fg); border-color: color-mix(in oklab, var(--fg) 30%, var(--line)); }
+.ghost:active { transform: scale(.97); }
+.ghost:active svg, .ghost.spin svg { transition: transform .45s ease; transform: rotate(-300deg); }
+.ghost:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 
 /* Matrix */
 .matrix-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
@@ -165,9 +175,13 @@ h1 .w { color: var(--accent); }
 .matrix-head p { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
 .seg { display: inline-flex; background: var(--surface-2); border-radius: 10px; padding: 3px; }
 .seg button { border: 0; background: transparent; cursor: pointer; padding: 6px 11px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.seg button[aria-pressed="true"], .seg button[aria-selected="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
 .grids { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
-@media (max-width: 720px) { .grids { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 600px) { .grids { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.cur-code { font: 500 12.5px var(--f-mono); color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 6px; vertical-align: 2px; margin-left: 6px; }
+.sources h2 { margin: 0 0 8px; font: 700 17px var(--f-display); }
+.sources p { margin: 0 0 8px; font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+.tabs button:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 .mini h4 { margin: 0 0 6px; font: 500 12px var(--f-mono); color: var(--muted); }
 .mini.cur h4 { color: var(--accent); }
 .mgrid { display: grid; grid-template-columns: 22px repeat(4, minmax(0,1fr)); gap: 3px; font-size: 10.5px; }
@@ -185,14 +199,53 @@ h1 .w { color: var(--accent); }
 .legend span { display: inline-flex; align-items: center; gap: 5px; }
 .legend i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
 
-footer { font-size: 12px; color: var(--muted); display: grid; gap: 6px; padding: 0 4px; }
-footer p { margin: 0; max-width: 90ch; }
 
 .toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); opacity: 0; background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; transition: opacity .2s, transform .2s; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 @media (max-width: 420px) { .dial { width: 108px; height: 108px; } .dial .num b { font-size: 40px; } .risk { font-size: 19px; } }
+.flag .short, .ks { display: none; }
+@media (max-width: 600px) {
+  body { padding: 8px 12px 6px; }
+  .wrap, .main { gap: 8px; }
+  .sub { display: none; }
+  .top { flex-wrap: nowrap; }
+  h1 { font-size: 21px; }
+  .tabs button { padding: 5px 8px; font-size: 12px; }
+  .panel { padding: 12px; border-radius: 14px; }
+  .result, .advice { gap: 8px; }
+  .hero { gap: 14px; }
+  .dial { width: 84px; height: 84px; }
+  .dial .num b { font-size: 34px; }
+  .dial .num span { font-size: 9px; }
+  .risk { font-size: 18px; }
+  .stats { gap: 8px; }
+  .stat { padding: 7px 10px; }
+  .stat .v { font-size: 19px; }
+  .stat .k, .stat .v small { font-size: 11px; }
+  .rows { gap: 7px; }
+  .row-head { margin-bottom: 5px; }
+  .chips { gap: 6px; }
+  .chip { min-height: 54px; padding: 6px 8px; border-radius: 10px; }
+  .chip .g { font-size: 19px; }
+  .chip .l { font-size: 11px; line-height: 1.25; }
+  .actions { padding-top: 9px; }
+  .rec p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; font-size: 13px; }
+  .rec.more p { display: block; }
+  .flags { gap: 6px; }
+  .flag { padding: 7px 10px; font-size: 12.5px; }
+  .flag .long { display: none; }
+  .flag .short, .ks { display: inline; }
+  .kl { display: none; }
+  .stat .v small { display: none; }
+  .dial { width: 76px; height: 76px; }
+  .dial .num b { font-size: 30px; }
+  .actions { flex-wrap: nowrap; gap: 8px; }
+  .switch { font-size: 12.5px; gap: 6px; white-space: nowrap; }
+  .btns { gap: 6px; }
+  .ghost, .btn { padding: 7px 10px; }
+}
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -203,18 +256,23 @@ footer p { margin: 0; max-width: 90ch; }
       <h1><span class="w">WIfI</span> Calculator</h1>
       <span class="sub">SVS threatened-limb staging</span>
     </div>
-    <span class="hint">Tap a grade in each row</span>
+    <div class="seg tabs" role="tablist" aria-label="View">
+      <button role="tab" id="tab-calc" data-view="calc" aria-selected="true">Calculator</button>
+      <button role="tab" id="tab-matrix" data-view="matrix" aria-selected="false">Matrix</button>
+      <button role="tab" id="tab-sources" data-view="sources" aria-selected="false">Sources</button>
+    </div>
   </header>
 
-  <div class="main">
+  <div class="main view" data-view="calc">
     <section class="panel rows" aria-label="Grades">
       <div class="row" data-k="w">
         <div class="row-head">
           <div class="row-title"><span class="code">W</span><span class="name">Wound</span></div>
-          <button class="info" id="info-w" aria-expanded="false" aria-controls="crit-w">Criteria <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <button class="info" id="info-w" aria-expanded="false" aria-controls="crit-w">Criteria <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5.2v3.3M6 3.4v.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
         </div>
         <div class="chips" role="radiogroup" aria-label="Wound grade"></div>
-        <div class="criteria" id="crit-w"><div><div class="crit-inner">
+        <div class="criteria" id="crit-w" role="dialog" aria-modal="true" aria-label="Wound (W) criteria"><div><div class="crit-inner">
+          <div class="crit-head"><b>Wound (W)</b><button class="x" type="button" data-close>Close</button></div>
           <dl>
             <dt>W0</dt><dd>No ulcer, no gangrene. Ischaemic rest pain (typical symptoms plus ischaemia grade 3).</dd>
             <dt>W1</dt><dd>Small, shallow ulcer on distal leg or foot; no exposed bone unless limited to distal phalanx. No gangrene. Salvageable with 1–2 digit amputation or skin cover.</dd>
@@ -228,10 +286,11 @@ footer p { margin: 0; max-width: 90ch; }
       <div class="row" data-k="i">
         <div class="row-head">
           <div class="row-title"><span class="code">I</span><span class="name">Ischaemia</span></div>
-          <button class="info" id="info-i" aria-expanded="false" aria-controls="crit-i">Criteria <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <button class="info" id="info-i" aria-expanded="false" aria-controls="crit-i">Criteria <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5.2v3.3M6 3.4v.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
         </div>
         <div class="chips" role="radiogroup" aria-label="Ischaemia grade"></div>
-        <div class="criteria" id="crit-i"><div><div class="crit-inner">
+        <div class="criteria" id="crit-i" role="dialog" aria-modal="true" aria-label="Ischaemia (I) criteria"><div><div class="crit-inner">
+          <div class="crit-head"><b>Ischaemia (I)</b><button class="x" type="button" data-close>Close</button></div>
           <div class="tscroll"><table>
             <thead><tr><th>Grade</th><th>ABI</th><th>Ankle pressure</th><th>Toe pressure / TcPO₂</th></tr></thead>
             <tbody>
@@ -248,10 +307,11 @@ footer p { margin: 0; max-width: 90ch; }
       <div class="row" data-k="f">
         <div class="row-head">
           <div class="row-title"><span class="code">fI</span><span class="name">Foot infection</span></div>
-          <button class="info" id="info-f" aria-expanded="false" aria-controls="crit-f">Criteria <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M1 3l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg></button>
+          <button class="info" id="info-f" aria-expanded="false" aria-controls="crit-f">Criteria <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5.2v3.3M6 3.4v.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
         </div>
         <div class="chips" role="radiogroup" aria-label="Foot infection grade"></div>
-        <div class="criteria" id="crit-f"><div><div class="crit-inner">
+        <div class="criteria" id="crit-f" role="dialog" aria-modal="true" aria-label="Foot infection (fI) criteria"><div><div class="crit-inner">
+          <div class="crit-head"><b>Foot infection (fI)</b><button class="x" type="button" data-close>Close</button></div>
           <dl>
             <dt>fI0</dt><dd>No symptoms or signs of infection.</dd>
             <dt>fI1</dt><dd>Two or more of: local swelling or induration; erythema &gt;0.5 to 2 cm around the ulcer; local tenderness or pain; local warmth; purulent discharge. Skin and subcutaneous tissue only, no systemic signs. Exclude trauma, gout, acute Charcot, fracture, thrombosis, venous stasis.</dd>
@@ -260,6 +320,14 @@ footer p { margin: 0; max-width: 90ch; }
           </dl>
           <p>Matches IDSA/PEDIS uninfected, mild, moderate, severe. GVG 2019 Table 3.4</p>
         </div></div></div>
+      </div>
+
+      <div class="actions">
+        <button class="switch" id="unsalv" role="switch" aria-checked="false"><span class="t" aria-hidden="true"></span><span>Unsalvageable<span class="kl"> foot</span></span></button>
+        <div class="btns">
+          <button class="ghost" id="reset" type="button" title="Back to W0 I0 fI0"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset</button>
+          <button class="btn" id="copy">Copy<span class="kl">&nbsp;summary</span></button>
+        </div>
       </div>
     </section>
 
@@ -280,8 +348,8 @@ footer p { margin: 0; max-width: 90ch; }
       </div>
 
       <div class="stats" id="stats">
-        <div class="stat"><div class="k">1-yr major amputation</div><div class="v" id="ampV">0%<small>median</small></div></div>
-        <div class="stat"><div class="k">Benefit of revascularisation</div><div class="v" id="benV"><span class="lvl">Very low</span></div></div>
+        <div class="stat"><div class="k"><span class="kl">1-yr major amputation</span><span class="ks">1-yr amputation</span></div><div class="v" id="ampV">0%<small>median</small></div></div>
+        <div class="stat"><div class="k"><span class="kl">Benefit of revascularisation</span><span class="ks">Revasc benefit</span></div><div class="v" id="benV"><span class="lvl">Very low</span></div></div>
       </div>
       <div class="sr" aria-live="polite" id="live"></div>
     </section>
@@ -289,19 +357,14 @@ footer p { margin: 0; max-width: 90ch; }
     <section class="panel advice" aria-label="What it means" id="advice">
       <div class="rec" id="rec"></div>
       <div class="flags" id="flags"></div>
-
-      <div class="actions">
-        <button class="switch" id="unsalv" role="switch" aria-checked="false"><span class="t" aria-hidden="true"></span>Unsalvageable foot</button>
-        <button class="btn" id="copy">Copy summary</button>
-      </div>
     </section>
   </div>
 
-  <section class="panel" aria-label="Matrix">
+  <section class="panel view" aria-label="Matrix" data-view="matrix" hidden>
     <div class="matrix-head">
       <div>
-        <h2>The whole matrix</h2>
-        <p>Rows W0–3, columns I0–3, one grid per foot infection grade. Tap any cell to jump to it.</p>
+        <h2>The whole matrix <span class="cur-code" id="curCode"></span></h2>
+        <p>Rows W0–3, columns I0–3, one grid per foot infection grade. Tap a cell to select it.</p>
       </div>
       <div class="seg" role="group" aria-label="Matrix view">
         <button id="viewAmp" aria-pressed="true">Amputation risk</button>
@@ -312,10 +375,11 @@ footer p { margin: 0; max-width: 90ch; }
     <div class="legend" id="legend"></div>
   </section>
 
-  <footer>
+  <section class="panel view sources" aria-label="Sources" data-view="sources" hidden>
+    <h2>Sources and caveats</h2>
     <p>Sources: Conte MS et al. Global Vascular Guidelines on CLTI, Eur J Vasc Endovasc Surg 2019;58(1S); Tables 1.2, 3.2–3.5 and Recs 6.7–6.14, 6.38, 7.6. Revascularisation benefit matrix from Mills JL et al., J Vasc Surg 2014;59:220 (Rutherford 11e Fig 104.2B), which assumes infection is controlled first.</p>
     <p>GVG Table 3.5 omits W0 I1 fI2 and lists W0 I2 fI1 under two stages. Those two cells follow the original SVS matrix (stage 3 and stage 2). WIfI is not validated in Aboriginal and Torres Strait Islander people (2021 Australian PAD guideline, Rec 5 implementation note). A revision aid, not a substitute for clinical judgement.</p>
-  </footer>
+  </section>
 </div>
 <div class="toast" id="toast">Copied</div>
 
@@ -344,7 +408,7 @@ footer p { margin: 0; max-width: 90ch; }
   var AMP_MEAN = [null, 3.2, 7.0, 8.7, 23.3];
 
   var LABELS = {
-    w: ["No wound<br>rest pain", "Small, shallow ulcer", "Deep ulcer or toe gangrene", "Extensive ulcer or gangrene"],
+    w: ["No wound<br>rest pain", "Small, shallow ulcer", "Deep ulcer or toe gangrene", "Extensive tissue loss"],
     i: ["TP ≥60<br>ABI ≥0.80", "TP 40–59<br>ABI 0.6–0.79", "TP 30–39<br>ABI 0.4–0.59", "TP &lt;30<br>ABI ≤0.39"],
     f: ["None", "Mild<br>≤2 cm", "Moderate<br>&gt;2 cm or deep", "Severe<br>SIRS"]
   };
@@ -355,13 +419,8 @@ footer p { margin: 0; max-width: 90ch; }
   var view = "amp";
   var lastStage = null;
 
-  function readHash() {
-    var m = /^#w([0-3])i([0-3])f([0-3])(x?)$/.exec(location.hash || "");
-    if (m) { st.w = +m[1]; st.i = +m[2]; st.f = +m[3]; st.x = !!m[4]; }
-  }
-  function writeHash() {
-    var h = "#w" + st.w + "i" + st.i + "f" + st.f + (st.x ? "x" : "");
-    try { history.replaceState(null, "", h); } catch (e) {}
+  function clearHash() {
+    if (location.hash) { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} }
   }
 
   // Build chips
@@ -380,9 +439,35 @@ footer p { margin: 0; max-width: 90ch; }
       box.appendChild(b);
     }
     var info = row.querySelector(".info"), crit = row.querySelector(".criteria");
-    info.addEventListener("click", function () {
-      var open = info.getAttribute("aria-expanded") !== "true";
-      info.setAttribute("aria-expanded", open); crit.classList.toggle("open", open);
+    info.addEventListener("click", function () { openCrit(crit, info); });
+    crit.addEventListener("click", function (e) { if (e.target === crit || e.target.hasAttribute("data-close")) closeCrit(); });
+  });
+
+  var openModal = null;
+  function openCrit(crit, info) {
+    closeCrit(); crit.classList.add("open"); info.setAttribute("aria-expanded", "true");
+    openModal = { crit: crit, info: info }; crit.querySelector("[data-close]").focus();
+  }
+  function closeCrit() {
+    if (!openModal) return;
+    openModal.crit.classList.remove("open"); openModal.info.setAttribute("aria-expanded", "false");
+    var back = openModal.info; openModal = null; back.focus();
+  }
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeCrit(); });
+
+  var tabs = document.querySelectorAll(".tabs [data-view]");
+  function showView(v) {
+    tabs.forEach(function (t) { t.setAttribute("aria-selected", t.dataset.view === v); t.tabIndex = t.dataset.view === v ? 0 : -1; });
+    document.querySelectorAll(".view").forEach(function (el) { el.hidden = el.dataset.view !== v; });
+  }
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () { showView(t.dataset.view); });
+    t.addEventListener("keydown", function (e) {
+      var order = ["calc", "matrix", "sources"], i = order.indexOf(t.dataset.view);
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault(); var n = order[(i + (e.key === "ArrowRight" ? 1 : 2)) % 3];
+        showView(n); document.getElementById("tab-" + n).focus();
+      }
     });
   });
 
@@ -432,10 +517,10 @@ footer p { margin: 0; max-width: 90ch; }
 
   function flags(stage) {
     var out = [];
-    if (st.f === 3) out.push(["--s4", "Systemic infection. Start antibiotics. Deep space infection or wet gangrene needs urgent drainage and debridement (minor amputation if needed), then restaging before any revascularisation decision.", "Recs 6.7, 6.8 · GPS"]);
-    else if (st.f === 2) out.push(["--s3", "If there is deep space infection or wet gangrene, drain and debride urgently, start antibiotics, then restage.", "Recs 6.7, 6.8 · GPS"]);
-    if (st.i >= 2) out.push(["--accent", "Do not offer hyperbaric oxygen for limb salvage while severe ischaemia is uncorrected.", "Rec 7.6 · 1B"]);
-    if (st.w === 3) out.push(["--accent", "Consider angiosome-guided revascularisation for a major wound, especially midfoot or hindfoot, if the target artery path is available.", "Rec 6.38 · 2C"]);
+    if (st.f === 3) out.push(["--s4", "Antibiotics; drain deep infection, restage", "Systemic infection. Start antibiotics. Deep space infection or wet gangrene needs urgent drainage and debridement (minor amputation if needed), then restaging before any revascularisation decision.", "Recs 6.7, 6.8 · GPS"]);
+    else if (st.f === 2) out.push(["--s3", "Deep infection: drain, debride, restage", "If there is deep space infection or wet gangrene, drain and debride urgently, start antibiotics, then restage.", "Recs 6.7, 6.8 · GPS"]);
+    if (st.i >= 2) out.push(["--accent", "No hyperbaric oxygen while ischaemia is uncorrected", "Do not offer hyperbaric oxygen for limb salvage while severe ischaemia is uncorrected.", "Rec 7.6 · 1B"]);
+    if (st.w === 3) out.push(["--accent", "Consider angiosome-guided revascularisation", "Consider angiosome-guided revascularisation for a major wound, especially midfoot or hindfoot, if the target artery path is available.", "Rec 6.38 · 2C"]);
     return out;
   }
 
@@ -493,9 +578,10 @@ footer p { margin: 0; max-width: 90ch; }
     benV.innerHTML = '<span class="lvl">' + LVL[ben] + '</span>' + (st.f >= 2 ? '<small>once infection is controlled</small>' : '');
 
     var r = rec(stage, st.i);
+    document.getElementById("rec").classList.remove("more");
     document.getElementById("rec").innerHTML = '<h3>' + r.h + ' <span class="badge">' + r.b + '</span></h3><p>' + r.t + '</p>';
     document.getElementById("flags").innerHTML = (stage === 5 ? [] : flags(stage)).map(function (f) {
-      return '<div class="flag" style="--fc: var(' + f[0] + ')"><i></i><span>' + f[1] + ' <span class="badge">' + f[2] + '</span></span></div>';
+      return '<div class="flag" style="--fc: var(' + f[0] + ')"><i></i><span><span class="short">' + f[1] + '</span><span class="long">' + f[2] + '</span> <span class="badge">' + f[3] + '</span></span></div>';
     }).join("");
 
     var sw = document.getElementById("unsalv"); sw.setAttribute("aria-checked", st.x);
@@ -514,12 +600,12 @@ footer p { margin: 0; max-width: 90ch; }
       c.setAttribute("aria-label", "W" + w + " I" + i + " fI" + f + ": " + (view === "amp" ? "stage " + v : LVL[v] + " revascularisation benefit"));
       c.setAttribute("aria-pressed", on);
     });
+    document.getElementById("curCode").textContent = "W" + st.w + " I" + st.i + " fI" + st.f + " · stage " + stage;
     var lg = view === "amp" ? [1, 2, 3, 4].map(function (s) { return [s, "Stage " + s + " · " + RISK[s]]; })
                             : [1, 2, 3, 4].map(function (s) { return [s, LVL[s]]; });
     document.getElementById("legend").innerHTML = lg.map(function (x) { return '<span><i style="--c: var(--s' + x[0] + ')"></i>' + x[1] + '</span>'; }).join("");
 
     document.getElementById("live").textContent = "W" + st.w + " I" + st.i + " fI" + st.f + ", " + (stage === 5 ? "stage 5, unsalvageable" : "clinical stage " + stage + ", " + RISK[stage].toLowerCase() + " amputation risk");
-    writeHash();
   }
 
   function summary() {
@@ -544,8 +630,18 @@ footer p { margin: 0; max-width: 90ch; }
     else fallback();
   });
 
-  window.addEventListener("hashchange", function () { readHash(); render(); });
-  readHash();
+  document.getElementById("rec").addEventListener("click", function () { this.classList.toggle("more"); });
+  document.getElementById("reset").addEventListener("click", function () {
+    st.w = 0; st.i = 0; st.f = 0; st.x = false; view = "amp";
+    closeCrit(); render();
+    var b = this; b.classList.add("spin"); setTimeout(function () { b.classList.remove("spin"); }, 460);
+    toast("Reset to W0 I0 fI0");
+  });
+
+  // Always open fresh: no carried-over selection from the URL or the browser's form/scroll restore.
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+  clearHash();
+  window.addEventListener("pageshow", function (e) { if (e.persisted) { st.w = 0; st.i = 0; st.f = 0; st.x = false; render(); } });
   render();
 })();
 </script>
