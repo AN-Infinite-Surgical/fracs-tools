@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>POSSUM Calculator</title>
+<meta name="description" content="POSSUM morbidity and mortality, P-POSSUM, V-POSSUM and RAAA-POSSUM from the 12 physiological and 6 operative POSSUM variables.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="../assets/fracs-tools.css">
+<style>
+/* Layout: a results strip across the top, then the 18 POSSUM variables in three tabbed groups of six. */
+.main { grid-template-columns: minmax(0, 1fr); grid-template-areas: "sum" "rows"; grid-template-rows: auto; }
+
+.scores { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.scorepills { display: flex; gap: 6px; flex-wrap: wrap; }
+.sp { font: 500 12.5px var(--f-mono); background: var(--surface-2); border-radius: 8px; padding: 4px 9px; font-variant-numeric: tabular-nums; }
+.sp b { font-weight: 700; color: var(--fg); }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 600px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } }
+.tile { background: var(--surface-2); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
+.tile .k { font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+.tile .v { font: 700 24px/1.1 var(--f-display); font-variant-numeric: tabular-nums; color: var(--tc, var(--fg)); }
+.tile .meter { height: 5px; border-radius: 99px; background: color-mix(in oklab, var(--muted) 18%, transparent); overflow: hidden; }
+.tile .meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--tc, var(--accent)); transition: width .45s cubic-bezier(.3,.7,.2,1); }
+.tile.vasc { outline: 1.5px dashed color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: -1.5px; }
+.vascopts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.seg.small button { padding: 4px 9px; font-size: 12px; }
+
+.grouphead { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.vars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+@media (max-width: 600px) { .vars { grid-template-columns: minmax(0, 1fr); gap: 7px; } }
+.var .row-head { margin-bottom: 4px; }
+.var .name { font: 600 13.5px var(--f-body); }
+.var .pts { font: 500 12px var(--f-mono); color: var(--accent); }
+.vars .chip { min-height: 52px; padding: 6px 8px; gap: 2px; }
+.vars .chip .g { font-size: 17px; }
+.vars .chip .l { font-size: 11px; line-height: 1.22; }
+.crit-inner table { font-size: 12.5px; }
+.crit-inner td:first-child { font-weight: 600; white-space: nowrap; }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+.sources h2 { margin: 0 0 8px; font: 700 17px var(--f-display); }
+.sources p { margin: 0 0 8px; font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+@media (max-width: 600px) {
+  .tile { padding: 8px 10px; }
+  .tile .v { font-size: 20px; }
+  .vars .chip { min-height: 48px; }
+  .var .row-head { margin-bottom: 3px; }
+  .vascopts .lbl { display: none; }
+  .tile { padding: 6px 9px; gap: 2px; }
+  .tile .k { font-size: 10.5px; }
+  .tile .v { font-size: 18px; }
+  .tile .meter { height: 4px; }
+  .grouphead .note, .actions .note { display: none; }
+  .grouphead { justify-content: flex-end; margin-bottom: -6px; }
+  .result { gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><span class="w">POSSUM</span> Calculator</h1>
+      <span class="sub">POSSUM · P-POSSUM · V-POSSUM</span>
+    </div>
+    <div class="seg tabs" role="tablist" aria-label="View">
+      <button role="tab" id="tab-pt" data-view="pt">Patient</button>
+      <button role="tab" id="tab-lab" data-view="lab">Bloods<span class="kl">&nbsp;&amp; GCS</span></button>
+      <button role="tab" id="tab-op" data-view="op">Operation</button>
+      <button role="tab" id="tab-src" data-view="src">Sources</button>
+    </div>
+  </header>
+
+  <div class="main view" data-view="pt lab op">
+    <section class="panel result" aria-label="Predicted risk" id="result">
+      <div class="scores">
+        <div class="scorepills">
+          <span class="sp">Physiological <b id="psV">12</b><span class="kl">/88</span></span>
+          <span class="sp">Operative <b id="osV">6</b><span class="kl">/48</span></span>
+        </div>
+        <div class="vascopts">
+          <span class="note lbl">Vascular model</span>
+          <div class="seg small" role="group" aria-label="Vascular model">
+            <button id="vmV" aria-pressed="true">V-POSSUM</button>
+            <button id="vmR" aria-pressed="false">RAAA</button>
+          </div>
+          <div class="seg small" role="group" aria-label="Equation">
+            <button id="eqF" aria-pressed="true">Full</button>
+            <button id="eqP" aria-pressed="false">Physiology</button>
+          </div>
+        </div>
+      </div>
+      <div class="tiles">
+        <div class="tile" id="t-morb"><span class="k">POSSUM morbidity</span><span class="v">–</span><span class="meter"><i></i></span></div>
+        <div class="tile" id="t-mort"><span class="k">POSSUM mortality</span><span class="v">–</span><span class="meter"><i></i></span></div>
+        <div class="tile" id="t-pp"><span class="k">P-POSSUM mortality</span><span class="v">–</span><span class="meter"><i></i></span></div>
+        <div class="tile vasc" id="t-vasc"><span class="k" id="vascK">V-POSSUM mortality</span><span class="v">–</span><span class="meter"><i></i></span></div>
+      </div>
+      <div class="sr" aria-live="polite" id="live"></div>
+    </section>
+
+    <section class="panel rows" aria-label="Variables">
+      <div class="grouphead">
+        <span class="note" id="groupNote">Unknown values score 1. Tap a band in each row.</span>
+        <button class="info" type="button" id="defsBtn" data-open="defs">Definitions <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="5.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 5.2v3.3M6 3.4v.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+      </div>
+      <div class="vars view" data-view="pt" id="g-pt"></div>
+      <div class="vars view" data-view="lab" id="g-lab" hidden></div>
+      <div class="vars view" data-view="op" id="g-op" hidden></div>
+      <div class="actions">
+        <span class="note">POSSUM over-predicts at low risk; P-POSSUM corrects this.</span>
+        <div class="btns">
+          <button class="ghost" id="reset" type="button"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset</button>
+          <button class="btn" id="copy">Copy<span class="kl">&nbsp;summary</span></button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel view sources" aria-label="Sources" data-view="src" hidden>
+    <h2>Sources and caveats</h2>
+    <p>Scoring bands: Copeland GP, Jones D, Walters M. POSSUM: a scoring system for surgical audit. Br J Surg 1991;78:355–60. Each of 12 physiological and 6 operative variables scores 1, 2, 4 or 8; a variable with no data scores 1 (as applied in P-POSSUM studies, e.g. Saudi J Anaesth 2019;13:46–51). Physiological score 12–88, operative severity score 6–48.</p>
+    <p>POSSUM: ln[R/(1−R)] = −5.91 + 0.16·PS + 0.19·OS (morbidity); −7.04 + 0.13·PS + 0.16·OS (mortality). P-POSSUM: −9.065 + 0.1692·PS + 0.1550·OS (Prytherch DR et al. Br J Surg 1998;85:1217–20). POSSUM over-predicted overall mortality more than twofold, and more than sevenfold in patients at ≤5% risk; P-POSSUM fitted observed in-hospital mortality closely.</p>
+    <p>V-POSSUM, major arterial surgery (Prytherch DR et al. Eur J Vasc Endovasc Surg 2001;21:477–83): full −8.0616 + 0.1552·PS + 0.1238·OS; physiology only −6.0386 + 0.1539·PS. RAAA-POSSUM, ruptured AAA: full −4.9795 + 0.0913·PS + 0.0958·OS; physiology only −2.7569 + 0.0968·PS. Equations as tabulated by Neary WD, Heather BP, Earnshaw JJ. Br J Surg 2003;90:157–65. The physiology-only forms need no operative data and can be used before surgery.</p>
+    <p>Rutherford 11e Ch 69: none of the rAAA scores (Hardman, Glasgow, V- and RAAA-POSSUM, Edinburgh, Vancouver, VSGNE) predicts outcome accurately enough to deny repair. POSSUM was devised for surgical audit and case-mix comparison (Copeland 1991; Neary 2003).</p>
+  </section>
+</div>
+
+<div class="criteria" id="defs" role="dialog" aria-modal="true" aria-label="POSSUM definitions"><div><div class="crit-inner">
+  <div class="crit-head"><b id="defsTitle">Definitions</b><button class="x" type="button" data-close>Close</button></div>
+  <div class="tscroll"><table id="defsTable"></table></div>
+  <p>Copeland 1991. Haemoglobin in g/dL, white cell count ×10⁹/L, urea mmol/L.</p>
+</div></div></div>
+<div class="toast" id="toast">Copied</div>
+
+<script src="../assets/fracs-tools.js"></script>
+<script>
+(function () {
+  // Each variable: [id, name, group, labels for 1/2/4/8 (null = band does not exist), full definitions]
+  var V = [
+    ["age", "Age", "pt", ["≤60", "61–70", "≥71", null], ["≤60 years", "61–70", "≥71", "–"]],
+    ["cardiac", "Cardiac", "pt", ["No failure", "Drug therapy", "Oedema, warfarin", "Raised JVP"],
+      ["No failure", "Diuretic, digoxin, antianginal or antihypertensive therapy", "Peripheral oedema, warfarin therapy, borderline cardiomegaly", "Raised JVP, cardiomegaly"]],
+    ["resp", "Respiratory", "pt", ["None", "On exertion", "Limiting", "At rest"],
+      ["No dyspnoea", "Dyspnoea on exertion, mild COAD", "Limiting dyspnoea (one flight), moderate COAD", "Dyspnoea at rest (rate ≥30/min), fibrosis or consolidation"]],
+    ["sbp", "Systolic BP", "pt", ["110–130", "100–109<br>131–170", "90–99<br>≥171", "≤89"], ["110–130 mmHg", "100–109 or 131–170", "90–99 or ≥171", "≤89"]],
+    ["pulse", "Pulse", "pt", ["50–80", "40–49<br>81–100", "101–120", "≤39<br>≥121"], ["50–80 /min", "40–49 or 81–100", "101–120", "≤39 or ≥121"]],
+    ["ecg", "ECG", "pt", ["Normal", null, "AF 60–90", "Other abnormal"], ["Normal", "–", "Atrial fibrillation, rate 60–90", "Any other abnormal rhythm, ≥5 ectopics/min, Q waves or ST/T changes"]],
+    ["gcs", "Glasgow Coma Scale", "lab", ["15", "12–14", "9–11", "≤8"], ["15", "12–14", "9–11", "≤8"]],
+    ["hb", "Haemoglobin g/dL", "lab", ["13–16", "11.5–12.9<br>16.1–17", "10–11.4<br>17.1–18", "≤9.9<br>≥18.1"], ["13–16", "11.5–12.9 or 16.1–17.0", "10.0–11.4 or 17.1–18.0", "≤9.9 or ≥18.1"]],
+    ["wcc", "White cells ×10⁹/L", "lab", ["4–10", "3.1–3.9<br>10.1–20", "≤3<br>≥20.1", null], ["4–10", "3.1–3.9 or 10.1–20.0", "≤3.0 or ≥20.1", "–"]],
+    ["urea", "Urea mmol/L", "lab", ["≤7.5", "7.6–10", "10.1–15", "≥15.1"], ["≤7.5", "7.6–10.0", "10.1–15.0", "≥15.1"]],
+    ["na", "Sodium mmol/L", "lab", ["≥136", "131–135", "126–130", "≤125"], ["≥136", "131–135", "126–130", "≤125"]],
+    ["k", "Potassium mmol/L", "lab", ["3.5–5.0", "3.2–3.4<br>5.1–5.3", "2.9–3.1<br>5.4–5.9", "≤2.8<br>≥6.0"], ["3.5–5.0", "3.2–3.4 or 5.1–5.3", "2.9–3.1 or 5.4–5.9", "≤2.8 or ≥6.0"]],
+    ["sev", "Operative severity", "op", ["Minor", "Moderate", "Major", "Major+"], ["Minor", "Moderate", "Major", "Major+"]],
+    ["nproc", "Procedures", "op", ["1", null, "2", "&gt;2"], ["1", "–", "2", "&gt;2"]],
+    ["blood", "Blood loss mL", "op", ["≤100", "101–500", "501–999", "≥1000"], ["≤100", "101–500", "501–999", "≥1000"]],
+    ["soil", "Peritoneal soiling", "op", ["None", "Serous", "Local pus", "Free bowel content, pus, blood"], ["None", "Minor (serous fluid)", "Local pus", "Free bowel content, pus or blood"]],
+    ["malig", "Malignancy", "op", ["None", "Primary only", "Nodal mets", "Distant mets"], ["None", "Primary only", "Nodal metastases", "Distant metastases"]],
+    ["mode", "Mode of surgery", "op", ["Elective", null, "Emergency &lt;24 h", "Emergency &lt;2 h"],
+      ["Elective", "–", "Emergency: resuscitation of &gt;2 h possible, operation &lt;24 h after admission", "Emergency: immediate surgery &lt;2 h needed"]]
+  ];
+  var PTS = [1, 2, 4, 8];
+  var GROUP_NAME = { pt: "Patient", lab: "Bloods and GCS", op: "Operation" };
+  var st = {}, syncs = {}, vasc = "v", eq = "full", group = "pt";
+
+  V.forEach(function (v) {
+    st[v[0]] = 1;
+    var wrap = document.createElement("div"); wrap.className = "var";
+    wrap.innerHTML = '<div class="row-head"><span class="name">' + v[1] + '</span><span class="pts" id="pts-' + v[0] + '">1</span></div><div class="chips" role="radiogroup" aria-label="' + v[1] + '"></div>';
+    document.getElementById("g-" + v[2]).appendChild(wrap);
+    syncs[v[0]] = FT.chips({
+      container: wrap.querySelector(".chips"), name: "c-" + v[0], aria: v[1], values: PTS, labels: v[3].map(function (l) { return l || ""; }),
+      disabled: v[3].map(function (l) { return l === null; }),
+      onPick: function (p) { st[v[0]] = p; render(); }
+    });
+  });
+
+  function scores() {
+    var ps = 0, os = 0;
+    V.forEach(function (v) { if (v[2] === "op") os += st[v[0]]; else ps += st[v[0]]; });
+    return { ps: ps, os: os };
+  }
+  function risks(ps, os) {
+    var L = FT.logit;
+    return {
+      morb: L(-5.91 + 0.16 * ps + 0.19 * os),
+      mort: L(-7.04 + 0.13 * ps + 0.16 * os),
+      pp: L(-9.065 + 0.1692 * ps + 0.1550 * os),
+      vFull: L(-8.0616 + 0.1552 * ps + 0.1238 * os),
+      vPhys: L(-6.0386 + 0.1539 * ps),
+      rFull: L(-4.9795 + 0.0913 * ps + 0.0958 * os),
+      rPhys: L(-2.7569 + 0.0968 * ps)
+    };
+  }
+  function band(p) { return p < 0.05 ? 1 : p < 0.15 ? 2 : p < 0.4 ? 3 : 4; }
+  function pct(x) { return x >= 99.5 ? "&gt;99%" : (x < 10 ? x.toFixed(1) : x.toFixed(0)) + "%"; }
+  function fmt(p) { return pct(p * 100).replace("&gt;", ">"); }
+  function tile(id, p, label) {
+    var t = document.getElementById(id);
+    t.style.setProperty("--tc", "var(--s" + band(p) + ")");
+    if (label) t.querySelector(".k").textContent = label;
+    FT.countUp(t.querySelector(".v"), p * 100, pct);
+    t.querySelector(".meter i").style.width = Math.max(1, p * 100).toFixed(1) + "%";
+  }
+
+  function vascValue(r) { return vasc === "v" ? (eq === "full" ? r.vFull : r.vPhys) : (eq === "full" ? r.rFull : r.rPhys); }
+  function vascLabel() { return (vasc === "v" ? "V-POSSUM" : "RAAA-POSSUM") + (eq === "full" ? "" : " (physiology)"); }
+
+  function render() {
+    V.forEach(function (v) { syncs[v[0]](st[v[0]]); document.getElementById("pts-" + v[0]).textContent = st[v[0]]; });
+    var s = scores(), r = risks(s.ps, s.os);
+    document.getElementById("psV").textContent = s.ps;
+    document.getElementById("osV").textContent = s.os;
+    tile("t-morb", r.morb); tile("t-mort", r.mort); tile("t-pp", r.pp);
+    tile("t-vasc", vascValue(r), vascLabel() + " mortality");
+    document.getElementById("vmV").setAttribute("aria-pressed", vasc === "v");
+    document.getElementById("vmR").setAttribute("aria-pressed", vasc === "r");
+    document.getElementById("eqF").setAttribute("aria-pressed", eq === "full");
+    document.getElementById("eqP").setAttribute("aria-pressed", eq === "phys");
+    document.getElementById("live").textContent = "Physiological score " + s.ps + ", operative score " + s.os + ". P-POSSUM mortality " + fmt(r.pp) + ".";
+  }
+
+  document.getElementById("vmV").addEventListener("click", function () { vasc = "v"; render(); });
+  document.getElementById("vmR").addEventListener("click", function () { vasc = "r"; render(); });
+  document.getElementById("eqF").addEventListener("click", function () { eq = "full"; render(); });
+  document.getElementById("eqP").addEventListener("click", function () { eq = "phys"; render(); });
+
+  function fillDefs() {
+    document.getElementById("defsTitle").textContent = GROUP_NAME[group] + " definitions";
+    var rows = V.filter(function (v) { return v[2] === group; }).map(function (v) {
+      return "<tr><td>" + v[1] + "</td>" + v[4].map(function (d) { return "<td>" + d + "</td>"; }).join("") + "</tr>";
+    }).join("");
+    document.getElementById("defsTable").innerHTML = "<thead><tr><th></th><th>1</th><th>2</th><th>4</th><th>8</th></tr></thead><tbody>" + rows + "</tbody>";
+  }
+  FT.tabs(function (v) { if (v !== "src") { group = v; fillDefs(); } });
+  FT.modals();
+
+  function reset() { V.forEach(function (v) { st[v[0]] = 1; }); vasc = "v"; eq = "full"; render(); }
+  document.getElementById("reset").addEventListener("click", function () {
+    reset(); var b = this; b.classList.add("spin"); setTimeout(function () { b.classList.remove("spin"); }, 460); FT.toast("Reset: all variables score 1");
+  });
+  document.getElementById("copy").addEventListener("click", function () {
+    var s = scores(), r = risks(s.ps, s.os);
+    FT.copy("POSSUM PS " + s.ps + ", OS " + s.os + ". POSSUM morbidity " + fmt(r.morb) + ", mortality " + fmt(r.mort) +
+      "; P-POSSUM mortality " + fmt(r.pp) + "; V-POSSUM " + fmt(r.vFull) + " (physiology only " + fmt(r.vPhys) + "); RAAA-POSSUM " + fmt(r.rFull) + " (physiology only " + fmt(r.rPhys) + ").");
+  });
+
+  window.POSSUM = { scores: scores, risks: risks, set: function (o) { Object.keys(o).forEach(function (k) { st[k] = o[k]; }); render(); }, vars: V };
+  FT.fresh(reset);
+  render();
+})();
+</script>
+</body>
+</html>

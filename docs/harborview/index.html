@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Harborview rAAA Score</title>
+<meta name="description" content="Harborview preoperative risk score for 30-day mortality after ruptured AAA repair: age, pH, creatinine and hypotension.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="../assets/fracs-tools.css">
+<style>
+/* Layout: four risk-factor cards on the left, score dial and mortality-by-score chart on the right. */
+.main { grid-template-areas: "rows sum"; grid-template-rows: auto; }
+@media (max-width: 600px) { .main { grid-template-areas: "sum" "rows"; } }
+
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.card {
+  position: relative; text-align: left; cursor: pointer; border: 1.5px solid var(--line);
+  background: var(--surface); border-radius: 14px; padding: 12px 12px 10px; display: grid; gap: 6px;
+  transition: border-color .18s, background-color .18s, transform .12s;
+}
+.card:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
+.card:active { transform: scale(.985); }
+.card[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.card:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+.card .top-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card .nm { font: 600 14px var(--f-body); }
+.card .pt { font: 500 12px var(--f-mono); color: var(--muted); }
+.card[aria-pressed="true"] .pt { color: var(--accent); }
+.card .th { font: 700 20px/1.1 var(--f-display); }
+.card[aria-pressed="true"] .th { color: var(--accent); }
+.card .entry { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 6px; font-size: 12px; color: var(--muted); }
+.card input::placeholder { color: color-mix(in oklab, var(--muted) 60%, transparent); }
+.card input {
+  width: 84px; min-width: 0; font: 500 13px var(--f-mono); color: var(--fg); background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 8px; padding: 4px 7px;
+}
+.card input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.unit { display: inline-flex; background: var(--surface-2); border-radius: 7px; padding: 2px; }
+.unit button { border: 0; background: transparent; cursor: pointer; font-size: 11px; font-weight: 600; color: var(--muted); padding: 2px 6px; border-radius: 5px; }
+.unit button[aria-pressed="true"] { background: var(--surface); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.check { position: absolute; top: 10px; right: 10px; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; transition: background .18s, border-color .18s; }
+.card[aria-pressed="true"] .check { background: var(--accent); border-color: var(--accent); }
+.check svg { opacity: 0; transition: opacity .15s; }
+.card[aria-pressed="true"] .check svg { opacity: 1; }
+.card .top-line { padding-right: 24px; }
+
+.mort { display: grid; gap: 2px; }
+.mort .big { font: 700 34px/1 var(--f-display); font-variant-numeric: tabular-nums; color: var(--stage); transition: color .35s; }
+.mort .cap { font-size: 12px; color: var(--muted); }
+
+.chart { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; align-items: end; height: 132px; padding-top: 18px; }
+.bar { display: grid; grid-template-rows: auto 1fr auto; height: 100%; text-align: center; gap: 4px; }
+.bar .val { font: 600 11px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar .col { align-self: end; border-radius: 7px 7px 3px 3px; background: color-mix(in oklab, var(--c) 32%, var(--surface-2)); transition: height .45s cubic-bezier(.3,.7,.2,1), background-color .3s; min-height: 4px; }
+.bar.on .col { background: var(--c); }
+.bar.on .val { color: var(--fg); }
+.bar.nr .col { background: repeating-linear-gradient(45deg, var(--surface-2) 0 4px, transparent 4px 8px); border: 1px dashed var(--line); }
+.bar .x { font: 500 11px var(--f-mono); color: var(--muted); }
+.bar.on .x { color: var(--fg); font-weight: 700; }
+.cohort-note { font-size: 11.5px; color: var(--muted); margin: 0; min-height: 1.4em; }
+.caveat { font-size: 12.5px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 10px; margin: 0; }
+.sources h2 { margin: 0 0 8px; font: 700 17px var(--f-display); }
+.sources p { margin: 0 0 8px; font-size: 13.5px; color: var(--muted); max-width: 80ch; }
+@media (max-width: 600px) {
+  .card { padding: 10px 10px 9px; gap: 4px; }
+  .card .th { font-size: 17px; }
+  .card input { width: 58px; }
+  .chart { height: 112px; }
+  .mort .big { font-size: 28px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><span class="w">Harborview</span> rAAA Score</h1>
+      <span class="sub">Preoperative 30-day mortality</span>
+    </div>
+    <div class="seg tabs" role="tablist" aria-label="View">
+      <button role="tab" id="tab-calc" data-view="calc">Calculator</button>
+      <button role="tab" id="tab-sources" data-view="sources">Sources</button>
+    </div>
+  </header>
+
+  <div class="main view" data-view="calc">
+    <section class="panel rows" aria-label="Risk factors">
+      <div class="cards" id="cards"></div>
+      <div class="actions">
+        <span class="lede">Tap a card, or type a value</span>
+        <div class="btns">
+          <button class="ghost" id="reset" type="button"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.6-3.7M3 2.5v3h3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset</button>
+          <button class="btn" id="copy">Copy<span class="kl">&nbsp;summary</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel result" aria-label="Result" id="result">
+      <div class="hero">
+        <div class="dial" id="dial">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="track" cx="60" cy="60" r="50" fill="none" stroke-width="10"/>
+            <circle class="glow" cx="60" cy="60" r="50" fill="none" stroke-width="10"/>
+            <circle class="arc" id="arc" cx="60" cy="60" r="50" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+          </svg>
+          <div class="num"><div><span>Score</span><b id="scoreNum">0</b></div></div>
+        </div>
+        <div class="mort">
+          <span class="cap">30-day mortality after repair</span>
+          <span class="big" id="mortV">14.6%</span>
+          <span class="cap" id="mortCap">of 4 points</span>
+        </div>
+      </div>
+      <div class="seg" role="group" aria-label="Cohort">
+        <button id="coModern" aria-pressed="true">Validation 2013–18</button>
+        <button id="coDeriv" aria-pressed="false">Derivation 2002–13</button>
+      </div>
+      <div class="chart" id="chart" aria-hidden="true"></div>
+      <p class="cohort-note" id="coNote"></p>
+      <p class="caveat">Use it to inform transfer and family discussions. ESVS 2024 advises against withholding repair on a score alone.</p>
+      <div class="sr" aria-live="polite" id="live"></div>
+    </section>
+  </div>
+
+  <section class="panel view sources" aria-label="Sources" data-view="sources" hidden>
+    <h2>Sources and caveats</h2>
+    <p>One point each for age &gt;76 years, pH &lt;7.2, creatinine &gt;2.0 mg/dL (&gt;177 µmol/L) and systolic BP &lt;70 mmHg at any time before repair. Garland BT et al. Preoperative risk score for the prediction of mortality after repair of ruptured abdominal aortic aneurysms. J Vasc Surg 2018;68:991–7 (n=303, Harborview 2002–2013; erratum J Vasc Surg 2018;68:1623).</p>
+    <p>Derivation, all repairs, 30 days: 1 point 22%, 2 points 69%, 3 points 80%, 4 points 100% (Garland abstract). Hemingway 2021 restates 3 points as 78%. The abstract does not report 0 points.</p>
+    <p>Validation, modern era Nov 2013–Dec 2018, 106 repairs: 0 points 14.6%, 1 point 35.7%, 2 points 68.4%, 3 or 4 points 100%. After adjustment for the score, 30-day mortality was 41.3% after open repair and 31.6% after EVAR (P = .2). Hemingway JF et al. J Vasc Surg 2021;74:1508–18.</p>
+    <p>ESVS 2024 AAA guidelines §6.2.6: the Harborview score relies only on preoperative variables and may help discussions with referring physicians, patients and families; withholding treatment or choosing palliation on a score alone is not recommended. In an independent community dataset (n=38) its AUC was 0.792 overall and 0.893 for rEVAR (Hansen 2019).</p>
+  </section>
+</div>
+<div class="toast" id="toast">Copied</div>
+
+<script src="../assets/fracs-tools.js"></script>
+<script>
+(function () {
+  var COHORTS = {
+    modern: { vals: [14.6, 35.7, 68.4, 100, 100], note: "Hemingway 2021, 106 repairs. 3 and 4 points were reported together." },
+    deriv:  { vals: [null, 22, 69, 80, 100], note: "Garland 2018, all repairs. 0 points not reported; 3 points restated as 78% in 2021." }
+  };
+  var FACTORS = [
+    { k: "age", nm: "Age", th: "&gt; 76 years", unit: "years", ph: "81", test: function (v) { return v > 76; } },
+    { k: "ph", nm: "pH", th: "&lt; 7.2", unit: "", step: "0.01", ph: "7.15", test: function (v) { return v < 7.2; } },
+    { k: "cr", nm: "Creatinine", th: "&gt; 177 µmol/L", alt: "&gt; 2.0 mg/dL", units: ["µmol/L", "mg/dL"], ph: "190",
+      test: function (v, u) { return u === "mg/dL" ? v > 2.0 : v > 177; } },
+    { k: "sbp", nm: "Lowest systolic BP", th: "&lt; 70 mmHg", unit: "mmHg", ph: "62", test: function (v) { return v < 70; } }
+  ];
+  var st = { on: { age: false, ph: false, cr: false, sbp: false }, crUnit: "µmol/L", cohort: "modern" };
+  var C = 2 * Math.PI * 50, last = null;
+  var cards = document.getElementById("cards");
+
+  FACTORS.forEach(function (f) {
+    var card = document.createElement("div");
+    card.className = "card"; card.tabIndex = 0; card.setAttribute("role", "button"); card.id = "card-" + f.k;
+    card.setAttribute("aria-pressed", "false");
+    var unitHtml = f.units
+      ? '<span class="unit" role="group" aria-label="Creatinine unit">' + f.units.map(function (u) { return '<button type="button" data-u="' + u + '" aria-pressed="' + (u === st.crUnit) + '">' + u + "</button>"; }).join("") + "</span>"
+      : '<span>' + (f.unit || "") + "</span>";
+    card.innerHTML =
+      '<span class="check" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M2 5.2l2 2 4-4.4" fill="none" stroke="var(--surface)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>' +
+      '<div class="top-line"><span class="nm">' + f.nm + '</span></div>' +
+      '<span class="th" id="th-' + f.k + '">' + f.th + "</span>" +
+      '<label class="entry"><input type="number" inputmode="decimal" id="in-' + f.k + '" step="' + (f.step || "any") + '" placeholder="' + f.ph + '" aria-label="' + f.nm + ' value">' + unitHtml + "</label>";
+    cards.appendChild(card);
+    var input = card.querySelector("input");
+    function toggle() { st.on[f.k] = !st.on[f.k]; input.value = ""; render(); }
+    card.addEventListener("click", function (e) { if (e.target.closest("input, .unit, label")) return; toggle(); });
+    card.addEventListener("keydown", function (e) { if (e.target !== card) return; if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+    input.addEventListener("input", function () { fromInput(f, input); });
+    card.querySelectorAll(".unit button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        st.crUnit = b.dataset.u;
+        card.querySelectorAll(".unit button").forEach(function (x) { x.setAttribute("aria-pressed", x.dataset.u === st.crUnit); });
+        document.getElementById("th-cr").innerHTML = st.crUnit === "mg/dL" ? f.alt : f.th;
+        fromInput(f, input);
+      });
+    });
+  });
+
+  function fromInput(f, input) {
+    var raw = input.value.trim();
+    if (raw === "") return;
+    var v = parseFloat(raw);
+    if (isNaN(v)) return;
+    st.on[f.k] = f.test(v, st.crUnit); render();
+  }
+
+  // chart
+  var chart = document.getElementById("chart");
+  for (var i = 0; i <= 4; i++) {
+    var b = document.createElement("div"); b.className = "bar"; b.id = "bar-" + i;
+    b.style.setProperty("--c", "var(--s" + Math.min(4, i + 1) + ")");
+    b.innerHTML = '<span class="val"></span><span class="col"></span><span class="x">' + i + "</span>";
+    chart.appendChild(b);
+  }
+
+  document.getElementById("coModern").addEventListener("click", function () { st.cohort = "modern"; render(); });
+  document.getElementById("coDeriv").addEventListener("click", function () { st.cohort = "deriv"; render(); });
+
+  function score() { return ["age", "ph", "cr", "sbp"].filter(function (k) { return st.on[k]; }).length; }
+
+  function render() {
+    var s = score(), co = COHORTS[st.cohort], m = co.vals[s];
+    var root = document.getElementById("result");
+    root.style.setProperty("--stage", "var(--s" + Math.min(4, s + 1) + ")");
+    FACTORS.forEach(function (f) { document.getElementById("card-" + f.k).setAttribute("aria-pressed", st.on[f.k]); });
+    document.getElementById("arc").style.strokeDashoffset = (C * (1 - Math.max(s, 0.02) / 4)).toFixed(2);
+    document.getElementById("scoreNum").textContent = s;
+    if (last !== null && last !== s) FT.pulse(document.getElementById("dial"));
+    last = s;
+    var mv = document.getElementById("mortV");
+    if (m == null) { mv.innerHTML = "n/r"; mv._v = null; }
+    else FT.countUp(mv, m, function (v) { return (Math.round(v * 10) / 10).toFixed(m % 1 ? 1 : 0) + "%"; });
+    document.getElementById("mortCap").textContent = m == null ? "0 points not reported in this cohort" : s + " of 4 points";
+    document.getElementById("coModern").setAttribute("aria-pressed", st.cohort === "modern");
+    document.getElementById("coDeriv").setAttribute("aria-pressed", st.cohort === "deriv");
+    for (var i = 0; i <= 4; i++) {
+      var bar = document.getElementById("bar-" + i), v = co.vals[i];
+      bar.classList.toggle("on", i === s); bar.classList.toggle("nr", v == null);
+      bar.querySelector(".col").style.height = (v == null ? 30 : Math.max(4, v)) + "%";
+      bar.querySelector(".val").textContent = v == null ? "n/r" : v + "%";
+    }
+    document.getElementById("coNote").textContent = co.note;
+    document.getElementById("live").textContent = "Score " + s + ", 30-day mortality " + (m == null ? "not reported" : m + "%");
+  }
+
+  function reset() {
+    st.on = { age: false, ph: false, cr: false, sbp: false }; st.cohort = "modern";
+    FACTORS.forEach(function (f) { document.getElementById("in-" + f.k).value = ""; });
+    render();
+  }
+  document.getElementById("reset").addEventListener("click", function () {
+    reset(); var b = this; b.classList.add("spin"); setTimeout(function () { b.classList.remove("spin"); }, 460); FT.toast("Reset to 0 points");
+  });
+  document.getElementById("copy").addEventListener("click", function () {
+    var s = score(), parts = [];
+    if (st.on.age) parts.push("age >76"); if (st.on.ph) parts.push("pH <7.2"); if (st.on.cr) parts.push("creatinine >177 µmol/L"); if (st.on.sbp) parts.push("SBP <70");
+    var mm = COHORTS.modern.vals[s], md = COHORTS.deriv.vals[s];
+    FT.copy("Harborview rAAA score " + s + "/4" + (parts.length ? " (" + parts.join(", ") + ")" : "") +
+      ". 30-day mortality after repair " + mm + "% (validation, Hemingway 2021)" + (md != null ? "; " + md + "% (derivation, Garland 2018)." : "."));
+  });
+
+  window.HBV = { score: score, cohorts: COHORTS, set: function (o) { Object.keys(o).forEach(function (k) { st.on[k] = !!o[k]; }); render(); } };
+  FT.tabs();
+  FT.fresh(reset);
+  render();
+})();
+</script>
+</body>
+</html>
