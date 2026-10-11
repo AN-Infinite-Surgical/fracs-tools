@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FEX Marker</title>
+<meta name="description" content="Write or paste an answer to a RACS Vascular Fellowship Exam short-answer question and get a cited PASS, BORDERLINE or FAIL mark to the first-year-consultant standard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="../assets/fracs-tools.css">
+<style>
+/* Layout: the page never scrolls; exactly one region per view does (question list, answer box, feedback body). */
+html, body { height: 100%; }
+body { height: 100dvh; overflow: hidden; }
+.wrap { height: 100%; grid-template-rows: auto minmax(0, 1fr); }
+.view.col { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; }
+.fill { flex: 1 1 auto; min-height: 0; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.row.sb { justify-content: space-between; }
+.muted { color: var(--muted); font-size: 12.5px; }
+.mono { font-family: var(--f-mono); }
+.seg.small button { padding: 5px 10px; font-size: 12px; }
+.input { width: 100%; font: 14px/1.4 var(--f-body); color: var(--fg); background: var(--surface-2); border: 1.5px solid transparent; border-radius: 10px; padding: 8px 11px; outline: none; transition: border-color .15s; }
+.input:focus { border-color: var(--accent); }
+textarea.input { resize: none; }
+
+/* Question bank */
+.topics { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; flex: none; }
+.topics::-webkit-scrollbar { display: none; }
+.tp { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 10px 4px 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; transition: border-color .15s, background-color .15s, color .15s; }
+.tp i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
+.tp b { font: 500 11px var(--f-mono); color: var(--muted); }
+.tp[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.tp:focus-visible, .q:focus-visible, .input:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+.qlist { overflow-y: auto; display: grid; gap: 8px; align-content: start; padding: 2px; margin: -2px; overscroll-behavior: contain; }
+.q { text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 9px 12px 10px; cursor: pointer; display: grid; gap: 4px; transition: border-color .15s, transform .12s; }
+.q:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
+.q:active { transform: scale(.99); }
+.q.on { border-color: var(--accent); background: var(--accent-soft); }
+.q .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
+.q .meta i { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.q .stem { font-size: 14px; line-height: 1.35; }
+.tag { font: 500 11px var(--f-mono); padding: 1px 6px; border-radius: 5px; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+.tag.ok { color: var(--s1); }
+.empty { color: var(--muted); font-size: 13.5px; padding: 18px 4px; text-align: center; }
+
+/* Question modal */
+.qmodal .verb { white-space: pre-wrap; font-size: 14.5px; line-height: 1.5; margin: 0 0 12px; }
+.qmodal .crit-head { gap: 10px; }
+.qmodal .foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+
+/* Answer */
+.qstrip { background: var(--surface-2); border-radius: 12px; padding: 9px 12px; display: flex; gap: 10px; align-items: flex-start; flex: none; }
+.qstrip .t { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.qstrip .t .meta { color: var(--muted); font-size: 11.5px; margin-right: 6px; font-family: var(--f-mono); }
+.link { border: 0; background: transparent; color: var(--accent); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 2px 4px; border-radius: 6px; white-space: nowrap; }
+.link:focus-visible { outline: 2.5px solid var(--accent); }
+.timer { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex: none; }
+.clock { font: 500 22px/1 var(--f-mono); font-variant-numeric: tabular-nums; min-width: 74px; color: var(--fg); }
+.clock.warn { color: var(--s2); } .clock.over { color: var(--s4); }
+.bar { height: 4px; border-radius: 4px; background: var(--surface-2); overflow: hidden; flex: none; }
+.bar i { display: block; height: 100%; width: 0; background: var(--s1); transition: width .9s linear; }
+.bar.warn i { background: var(--s2); } .bar.over i { background: var(--s4); }
+.answer { font-size: 15px; line-height: 1.55; padding: 12px 14px; }
+.answer[readonly] { opacity: .75; }
+.draft { display: flex; align-items: center; gap: 8px; font-size: 12.5px; background: var(--accent-soft); border-radius: 10px; padding: 6px 10px; flex: none; }
+.draft span { flex: 1; }
+.status { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; color: var(--muted); flex: none; }
+.status .over { color: var(--s4); font-weight: 600; }
+.btn[disabled] { opacity: .4; cursor: default; }
+.actions.flat { border-top: 0; padding-top: 0; flex: none; }
+
+/* Feedback */
+.fb { --stage: var(--s5); }
+.fb .hero { flex: none; }
+.dial .num b small { font-size: 15px; color: var(--muted); }
+.six { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
+.six .stat { padding: 8px 10px; }
+.six .stat .k { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.six .stat .v { font-size: 21px; }
+.six .stat .v .lvl { color: var(--lvl, var(--muted)); }
+.six .stat .v span.of { font: 500 12px var(--f-body); color: var(--muted); }
+.fbody { overflow-y: auto; background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 13.5px; line-height: 1.5; overscroll-behavior: contain; }
+.fbody h4 { margin: 14px 0 6px; font: 600 11.5px var(--f-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.fbody h4:first-child { margin-top: 0; }
+.fbody ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; }
+.fbody li { position: relative; padding-left: 14px; }
+.fbody li::before { content: ""; position: absolute; left: 0; top: .55em; width: 6px; height: 6px; border-radius: 50%; background: var(--lc, var(--muted)); }
+.fbody .cite { color: var(--muted); font-size: 12.5px; }
+.fbody pre { margin: 0; white-space: pre-wrap; font: 13px/1.5 var(--f-body); }
+.fbody .none { color: var(--muted); }
+.fbody .dim { display: grid; grid-template-columns: auto auto minmax(0,1fr); gap: 4px 10px; align-items: baseline; }
+.fbody .dim b { font: 500 12px var(--f-mono); color: var(--muted); }
+.fbody .dim span.s { font-weight: 700; color: var(--lvl); }
+.fsubtabs { flex: none; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.fsubtabs::-webkit-scrollbar { display: none; }
+.fsubtabs button { white-space: nowrap; }
+.fsubtabs button .n { font: 500 11px var(--f-mono); color: var(--s4); margin-left: 3px; }
+.unver { background: var(--accent-soft); color: var(--accent); }
+.thinking { display: inline-flex; gap: 4px; margin-left: 4px; vertical-align: middle; }
+.thinking i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: blink 1.2s infinite ease-in-out; }
+.thinking i:nth-child(2) { animation-delay: .2s; } .thinking i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .2; } 40% { opacity: 1; } }
+.ftext { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 600px) {
+  .view.col { gap: 8px; }
+  .clock { font-size: 19px; min-width: 64px; }
+  .six { gap: 6px; }
+  .six .stat { padding: 6px 8px; }
+  .six .stat .v { font-size: 18px; }
+  .six .stat .k { font-size: 10.5px; }
+  .fbody { padding: 10px 12px; font-size: 13px; }
+  .q { padding: 8px 10px 9px; }
+  .q .stem { font-size: 13.5px; }
+  .answer { padding: 10px 12px; font-size: 14.5px; }
+  .hide-sm { display: none; }
+  .fb .pill { font-size: 11.5px; padding: 2px 6px; }
+  .six .stat .k .kl { display: none; } .six .stat .k .ks { display: inline; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1><span class="w">FEX</span> Marker</h1>
+      <span class="sub">Written SAQ examiner, first-year-consultant standard</span>
+    </div>
+    <div class="seg tabs" role="tablist" aria-label="View">
+      <button role="tab" data-view="question" aria-selected="true">Question</button>
+      <button role="tab" data-view="answer" aria-selected="false">Answer</button>
+      <button role="tab" data-view="feedback" aria-selected="false">Feedback</button>
+    </div>
+  </header>
+
+  <!-- Question -->
+  <section class="panel view col" data-view="question" aria-label="Choose a question">
+    <div class="row sb">
+      <div class="seg small" role="group" aria-label="Question source">
+        <button type="button" id="src-past" aria-pressed="true">Past papers</button>
+        <button type="button" id="src-own" aria-pressed="false">Your own</button>
+      </div>
+      <div class="row"><span class="muted" id="qcount"></span><button class="ghost" id="random" type="button">Random</button></div>
+    </div>
+    <div id="pane-past" class="col view-inner" style="display:flex;flex-direction:column;gap:10px;min-height:0;flex:1">
+      <input class="input" id="search" type="search" placeholder="Search questions, e.g. endoleak, HIT, 2023" aria-label="Search questions" autocomplete="off">
+      <div class="topics" id="topics" role="group" aria-label="Filter by topic"></div>
+      <div class="qlist fill" id="qlist" role="list"></div>
+    </div>
+    <div id="pane-own" hidden style="display:flex;flex-direction:column;gap:10px;min-height:0;flex:1">
+      <textarea class="input fill" id="ownq" maxlength="2500" placeholder="Paste or type the question stem, including every sub-part." aria-label="Your question"></textarea>
+      <p class="lede">Questions you paste are marked from the rubric alone. Their citations are not verified against the library, and the feedback says so.</p>
+      <div class="row sb"><span class="muted" id="ownqn">0 / 2,500</span><button class="btn" id="useown" type="button" disabled>Use this question</button></div>
+    </div>
+  </section>
+
+  <!-- Answer -->
+  <section class="panel view col" data-view="answer" aria-label="Write your answer" hidden>
+    <div class="qstrip" id="qstrip">
+      <div class="t" id="qstrip-t">No question chosen yet.</div>
+      <button class="link" id="qstrip-view" type="button" hidden>View</button>
+      <button class="link" id="qstrip-change" type="button">Choose</button>
+    </div>
+    <div class="timer">
+      <div class="seg small" role="group" aria-label="Timer">
+        <button type="button" data-mode="untimed" aria-pressed="true">Untimed</button>
+        <button type="button" data-mode="countdown" aria-pressed="false" id="mode-cd">12 min</button>
+        <button type="button" data-mode="stopwatch" aria-pressed="false">Stopwatch</button>
+      </div>
+      <span class="clock" id="clock" hidden>12:00</span>
+      <button class="ghost" id="tstart" type="button" hidden>Start</button>
+      <button class="link" id="tunlock" type="button" hidden>Keep writing</button>
+    </div>
+    <div class="bar" id="bar" hidden><i></i></div>
+    <div class="draft" id="draft" hidden><span id="draft-t">Unsent draft found.</span><button class="link" id="draft-r" type="button">Restore</button><button class="link" id="draft-d" type="button">Discard</button></div>
+    <textarea class="input answer fill" id="answer" spellcheck="true" placeholder="Write or paste your answer. Frame the problem, then work through it as you would in the exam." aria-label="Your answer"></textarea>
+    <div class="status"><span id="wc">0 words</span><span id="quota"></span></div>
+    <div class="actions flat">
+      <button class="ghost" id="reset" type="button"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset</button>
+      <button class="btn" id="submit" type="button" disabled>Submit for marking</button>
+    </div>
+  </section>
+
+  <!-- Feedback -->
+  <section class="panel view col fb" data-view="feedback" aria-label="Feedback" hidden id="fb">
+    <div class="hero">
+      <div class="dial" id="dial" aria-hidden="true">
+        <svg viewBox="0 0 132 132"><circle class="track" cx="66" cy="66" r="56" fill="none" stroke-width="10"/><circle class="glow" cx="66" cy="66" r="56" fill="none" stroke-width="10"/><circle class="arc" id="arc" cx="66" cy="66" r="56" fill="none" stroke-width="10" stroke-linecap="round" stroke-dasharray="351.86" stroke-dashoffset="351.86"/></svg>
+        <div class="num"><div><b id="total">–</b><span>of 24</span></div></div>
+      </div>
+      <div class="hero-text">
+        <p class="risk" id="verdict">No answer marked yet</p>
+        <p class="lede" id="rationale">Choose a question, write your answer, then submit it for marking.</p>
+        <div class="pills" id="pills"></div>
+      </div>
+    </div>
+    <div class="six" id="six"></div>
+    <div class="seg small fsubtabs" role="tablist" aria-label="Feedback sections" id="fsub">
+      <button role="tab" data-f="verdict" aria-selected="true">To pass</button>
+      <button role="tab" data-f="strengthen" aria-selected="false">Strengthen</button>
+      <button role="tab" data-f="flags" aria-selected="false">Red flags<span class="n" id="nflags"></span></button>
+      <button role="tab" data-f="sources" aria-selected="false">Sources</button>
+      <button role="tab" data-f="full" aria-selected="false">Full</button>
+    </div>
+    <div class="fbody fill" id="fbody" aria-live="polite"><p class="none">Feedback appears here.</p></div>
+    <div class="actions flat">
+      <div class="btns">
+        <button class="ghost" id="again" type="button">Revise answer</button>
+        <button class="ghost hide-sm" id="newq" type="button">New question</button>
+      </div>
+      <div class="row"><span class="ftext" id="ftext"></span><button class="btn" id="copyfb" type="button" disabled>Copy</button></div>
+    </div>
+  </section>
+</div>
+
+<div class="criteria qmodal" id="qmodal" role="dialog" aria-modal="true" aria-labelledby="qm-title">
+  <div><div class="crit-inner">
+    <div class="crit-head"><span id="qm-title">Question</span><button class="x" data-close type="button">Close</button></div>
+    <p class="verb" id="qm-verb"></p>
+    <div class="foot">
+      <div class="pills" id="qm-tags"></div>
+      <button class="btn" id="qm-go" type="button">Answer this question</button>
+    </div>
+  </div></div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+<div class="sr" aria-live="assertive" id="sr"></div>
+
+<script src="../assets/fracs-tools.js"></script>
+<script>
+(function () {
+  "use strict";
+  var LOCAL = /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  var API = LOCAL ? "http://localhost:3000" : "https://fex-marker-api.vercel.app";
+  var MAX_WORDS = 1800, DRAFT_KEY = "fex-marker.draft";
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
+  var words = function (s) { var m = s.trim().match(/\S+/g); return m ? m.length : 0; };
+  var fmt = function (sec) { var neg = sec < 0; sec = Math.abs(Math.round(sec)); return (neg ? "+" : "") + Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); };
+  var store = {
+    get: function () { try { return JSON.parse(localStorage.getItem(DRAFT_KEY) || "null"); } catch (e) { return null; } },
+    set: function (v) { try { localStorage.setItem(DRAFT_KEY, JSON.stringify(v)); } catch (e) {} },
+    clear: function () { try { localStorage.removeItem(DRAFT_KEY); } catch (e) {} }
+  };
+  var SHORT = { "Aorta - Abdominal": "AAA", "Aorta - Thoracic & Dissection": "Thoracic", "Carotid & Cerebrovascular": "Carotid", "Renal & Visceral": "Renal/visceral", "Peripheral Arterial / CLTI": "PAD/CLTI", "Acute Limb & Periph Aneurysm": "Acute limb", "Thoracic Outlet & Upper Limb": "TOS/upper limb", "Venous - Superficial": "Superficial venous", "Venous - Deep / IVC / Malf.": "Deep venous", "Vasospastic & Vasculitis": "Vasculitis", "Dialysis Access": "Dialysis", "Infection & Diabetic Foot": "Infection/foot", "Trauma": "Trauma", "Imaging, Lab & Radiation": "Imaging/radiation", "Perioperative / Haem / Pharm": "Periop/haem", "Professional & Non-technical": "Professional" };
+  var MON = { April: "Apr", August: "Aug", September: "Sep" };
+
+  /* ---------- state ---------- */
+  var S = { bank: null, topic: "All", query: "", src: "past", q: null, mode: "untimed", t0: null, acc: 0, running: false, locked: false, ctl: null, raw: "", parsed: null, sub: "verdict", startedAt: 0, meta: null };
+  var show = FT.tabs(function (v) { if (v === "answer") setTimeout(function () { if (!S.locked) $("answer").focus({ preventScroll: true }); }, 30); });
+
+  /* ---------- question bank ---------- */
+  function load() {
+    fetch("bank.json", { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (b) {
+      S.bank = b; renderTopics(); renderList();
+    }).catch(function () { $("qlist").innerHTML = '<p class="empty">The question bank did not load. Refresh to try again, or paste your own question.</p>'; });
+  }
+  function renderTopics() {
+    var t = S.bank.topics, keys = Object.keys(t).sort(function (a, b) { return t[b].count - t[a].count; });
+    var html = '<button class="tp" type="button" data-t="All" aria-pressed="true"><i style="--c:var(--fg)"></i>All<b>' + S.bank.questions.length + "</b></button>";
+    keys.forEach(function (k) { html += '<button class="tp" type="button" data-t="' + esc(k) + '" aria-pressed="false" title="' + esc(k) + '"><i style="--c:' + t[k].color + '"></i>' + esc(SHORT[k] || k) + "<b>" + t[k].count + "</b></button>"; });
+    $("topics").innerHTML = html;
+  }
+  $("topics").addEventListener("click", function (e) {
+    var b = e.target.closest(".tp"); if (!b) return;
+    S.topic = b.dataset.t;
+    $("topics").querySelectorAll(".tp").forEach(function (x) { x.setAttribute("aria-pressed", x === b); });
+    renderList();
+  });
+  $("search").addEventListener("input", function () { S.query = this.value.trim().toLowerCase(); renderList(); });
+  function filtered() {
+    if (!S.bank) return [];
+    var q = S.query;
+    return S.bank.questions.filter(function (x) {
+      if (S.topic !== "All" && x.topic !== S.topic) return false;
+      if (!q) return true;
+      return (x.stem + " " + x.verbatim + " " + (x.tags || []).join(" ") + " " + x.year + " " + x.sitting + " " + x.topic).toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return b.id - a.id; });
+  }
+  function label(x) { return x.year + " " + (MON[x.sitting] || x.sitting) + " · " + (x.fmt === "Essay" ? "Essay · " + x.parts + " parts" : "SAQ"); }
+  function renderList() {
+    var list = filtered(), t = S.bank.topics;
+    $("qcount").textContent = list.length + " of " + S.bank.questions.length;
+    if (!list.length) { $("qlist").innerHTML = '<p class="empty">No questions match. Clear the search or pick another topic.</p>'; return; }
+    $("qlist").innerHTML = list.map(function (x) {
+      var on = S.q && S.q.id === x.id ? " on" : "";
+      return '<button class="q' + on + '" type="button" role="listitem" data-id="' + x.id + '">' +
+        '<span class="meta"><i style="--c:' + t[x.topic].color + '"></i>' + esc(label(x)) + ' · ' + esc(SHORT[x.topic] || x.topic) +
+        (x.hasScheme ? "" : ' <span class="tag">unverified</span>') + "</span>" +
+        '<span class="stem">' + esc(x.stem) + "</span></button>";
+    }).join("");
+  }
+  $("qlist").addEventListener("click", function (e) { var b = e.target.closest(".q"); if (b) openQ(+b.dataset.id, b); });
+  $("random").addEventListener("click", function () {
+    var l = filtered(); if (!l.length) return;
+    var x = l[Math.floor(Math.random() * l.length)]; openQ(x.id, $("random"));
+  });
+
+  var lastFocus = null, pendingQ = null;
+  function openQ(id, from) {
+    var x = S.bank.questions.find(function (q) { return q.id === id; }); if (!x) return;
+    pendingQ = x; lastFocus = from || null;
+    $("qm-title").textContent = label(x);
+    $("qm-verb").textContent = x.verbatim;
+    var tags = '<span class="pill">' + esc(x.topic) + "</span>";
+    if (x.type) tags += '<span class="pill">' + esc(x.type) + "</span>";
+    tags += x.hasScheme ? '<span class="pill" style="color:var(--s1)">Verified scheme</span>' : '<span class="pill unver">Scheme pending</span>';
+    $("qm-tags").innerHTML = tags;
+    $("qmodal").classList.add("open");
+    setTimeout(function () { $("qm-go").focus(); }, 20);
+  }
+  function closeQ() { $("qmodal").classList.remove("open"); if (lastFocus) lastFocus.focus({ preventScroll: true }); }
+  $("qmodal").addEventListener("click", function (e) { if (e.target === $("qmodal") || e.target.hasAttribute("data-close")) closeQ(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && $("qmodal").classList.contains("open")) closeQ(); });
+  $("qm-go").addEventListener("click", function () {
+    $("qmodal").classList.remove("open"); this.textContent = "Answer this question";
+    if (pendingQ) choose({ kind: "past", id: pendingQ.id, x: pendingQ }); else show("answer");
+  });
+
+  /* source toggle */
+  function setSrc(s) {
+    S.src = s;
+    $("src-past").setAttribute("aria-pressed", s === "past"); $("src-own").setAttribute("aria-pressed", s === "own");
+    $("pane-past").hidden = s !== "past"; $("pane-own").hidden = s !== "own";
+    $("pane-past").style.display = s === "past" ? "flex" : "none"; $("pane-own").style.display = s === "own" ? "flex" : "none";
+    $("random").hidden = s !== "past"; $("qcount").hidden = s !== "past";
+    if (s === "own") setTimeout(function () { $("ownq").focus(); }, 20);
+  }
+  $("src-past").addEventListener("click", function () { setSrc("past"); });
+  $("src-own").addEventListener("click", function () { setSrc("own"); });
+  $("ownq").addEventListener("input", function () {
+    var n = this.value.trim().length;
+    $("ownqn").textContent = n.toLocaleString() + " / 2,500";
+    $("useown").disabled = n < 20;
+  });
+  $("useown").addEventListener("click", function () { choose({ kind: "own", text: $("ownq").value.trim() }); });
+
+  function parts() { return S.q && S.q.kind === "past" ? Math.max(1, S.q.x.parts || 1) : 1; }
+  function allowance() { return 720 * parts(); }
+  function choose(q) {
+    var changed = !S.q || S.q.kind !== q.kind || S.q.id !== q.id || S.q.text !== q.text;
+    S.q = q;
+    if (changed) { stopTimer(true); }
+    renderStrip(); renderList && S.bank && renderList(); updateSubmit();
+    $("mode-cd").textContent = parts() > 1 ? (12 * parts()) + " min" : "12 min";
+    if (S.mode === "countdown") paintClock();
+    show("answer"); saveDraft();
+  }
+  function renderStrip() {
+    if (!S.q) { $("qstrip-t").innerHTML = "No question chosen yet."; $("qstrip-view").hidden = true; $("qstrip-change").textContent = "Choose"; return; }
+    if (S.q.kind === "past") $("qstrip-t").innerHTML = '<span class="meta">' + esc(label(S.q.x)) + "</span>" + esc(S.q.x.verbatim);
+    else $("qstrip-t").innerHTML = '<span class="meta">Your question</span>' + esc(S.q.text);
+    $("qstrip-view").hidden = false; $("qstrip-change").textContent = "Change";
+  }
+  $("qstrip-change").addEventListener("click", function () { show("question"); });
+  $("qstrip-view").addEventListener("click", function () {
+    if (!S.q) return;
+    if (S.q.kind === "past") { openQ(S.q.id, $("qstrip-view")); $("qm-go").textContent = "Back to answer"; }
+    else { pendingQ = null; $("qm-title").textContent = "Your question"; $("qm-verb").textContent = S.q.text; $("qm-tags").innerHTML = '<span class="pill unver">Citations not verified</span>'; $("qm-go").textContent = "Back to answer"; $("qmodal").classList.add("open"); }
+  });
+
+  /* ---------- timer ---------- */
+  var tick = null;
+  function elapsed() { return S.acc + (S.running ? (Date.now() - S.t0) / 1000 : 0); }
+  function setMode(m) {
+    if (m === S.mode) return;
+    stopTimer(true); S.mode = m;
+    document.querySelectorAll("[data-mode]").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.mode === m); });
+    $("clock").hidden = m === "untimed"; $("tstart").hidden = m === "untimed"; $("bar").hidden = m !== "countdown";
+    paintClock();
+  }
+  document.querySelectorAll("[data-mode]").forEach(function (b) { b.addEventListener("click", function () { setMode(b.dataset.mode); }); });
+  function startTimer() {
+    if (S.mode === "untimed" || S.running) return;
+    S.running = true; S.t0 = Date.now(); $("tstart").textContent = "Pause";
+    clearInterval(tick); tick = setInterval(paintClock, 250); paintClock();
+  }
+  function pauseTimer() { if (!S.running) return; S.acc = elapsed(); S.running = false; clearInterval(tick); $("tstart").textContent = "Resume"; paintClock(); }
+  function stopTimer(clear) {
+    clearInterval(tick); S.running = false;
+    if (clear) { S.acc = 0; S.locked = false; $("answer").readOnly = false; $("tunlock").hidden = true; }
+    $("tstart").textContent = "Start"; paintClock();
+  }
+  $("tstart").addEventListener("click", function () { S.running ? pauseTimer() : startTimer(); });
+  var warned = false, timeUp = false;
+  function paintClock() {
+    var e = elapsed(), c = $("clock"), bar = $("bar");
+    if (S.mode === "countdown") {
+      var left = allowance() - e;
+      c.textContent = left >= 0 ? fmt(left) : fmt(left);
+      var warn = left <= 120 && left > 0, over = left <= 0;
+      c.classList.toggle("warn", warn); c.classList.toggle("over", over);
+      bar.classList.toggle("warn", warn); bar.classList.toggle("over", over);
+      bar.firstElementChild.style.width = Math.min(100, (e / allowance()) * 100) + "%";
+      if (warn && !warned && S.running) { warned = true; FT.toast("Two minutes left"); $("sr").textContent = "Two minutes left"; }
+      if (over && !timeUp && S.running) {
+        timeUp = true; S.locked = true; $("answer").readOnly = true; $("tunlock").hidden = false;
+        FT.toast("Time. Submit for marking"); $("sr").textContent = "Time is up. Your answer is locked. Submit it for marking, or choose keep writing.";
+      }
+      if (e === 0) { warned = false; timeUp = false; }
+    } else {
+      c.textContent = fmt(e); c.classList.remove("warn", "over");
+    }
+  }
+  $("tunlock").addEventListener("click", function () { S.locked = false; $("answer").readOnly = false; this.hidden = true; $("answer").focus(); });
+
+  /* ---------- answer ---------- */
+  var saveT = null;
+  $("answer").addEventListener("input", function () {
+    if (S.mode !== "untimed" && !S.running && elapsed() === 0) startTimer();
+    updateSubmit();
+    clearTimeout(saveT); saveT = setTimeout(saveDraft, 600);
+  });
+  function updateSubmit() {
+    var n = words($("answer").value);
+    $("wc").innerHTML = n > MAX_WORDS ? '<span class="over">' + n.toLocaleString() + " / " + MAX_WORDS.toLocaleString() + " words</span>" : n.toLocaleString() + (n === 1 ? " word" : " words");
+    $("submit").disabled = !S.q || n < 30 || n > MAX_WORDS || !!S.ctl;
+    $("submit").title = !S.q ? "Choose a question first" : n < 30 ? "Write at least 30 words" : "";
+  }
+  function saveDraft() {
+    var a = $("answer").value;
+    if (words(a) < 30) return;
+    store.set({ q: S.q && (S.q.kind === "past" ? { kind: "past", id: S.q.id } : { kind: "own", text: S.q.text }), answer: a, savedAt: Date.now() });
+  }
+  function offerDraft() {
+    var d = store.get();
+    if (!d || !d.answer || words(d.answer) < 30 || Date.now() - d.savedAt > 7 * 864e5) return;
+    var when = new Date(d.savedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    $("draft-t").textContent = "Unsent draft from " + when + " (" + words(d.answer) + " words).";
+    $("draft").hidden = false;
+    $("draft-r").onclick = function () {
+      if (d.q && d.q.kind === "past" && S.bank) { var x = S.bank.questions.find(function (q) { return q.id === d.q.id; }); if (x) choose({ kind: "past", id: x.id, x: x }); }
+      else if (d.q && d.q.kind === "own") { $("ownq").value = d.q.text; choose({ kind: "own", text: d.q.text }); }
+      $("answer").value = d.answer; $("draft").hidden = true; updateSubmit(); show("answer");
+    };
+    $("draft-d").onclick = function () { store.clear(); $("draft").hidden = true; };
+  }
+
+  /* ---------- quota ---------- */
+  function loadQuota() {
+    fetch(API + "/api/quota", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (q) {
+      if (q && q.capIp != null) $("quota").textContent = q.remainingIp + " of " + q.capIp + " marks left today";
+    }).catch(function () { $("quota").textContent = ""; });
+  }
+
+  /* ---------- parser (kept in step with fex-marker-api/lib/parse.ts) ---------- */
+  var SECTION_KEYS = [[/^Safety red flags\s*:/i, "redFlags"], [/^Defensible alternatives credited\s*:/i, "alternatives"], [/^Would change the verdict\s*:/i, "change"], [/^Would strengthen\s*:/i, "strengthen"], [/^Source notes\s*:/i, "sources"], [/^To turn this into a pass\s*:/i, "toPass"]];
+  function parseBlock(raw) {
+    var text = raw.replace(/\*\*/g, "").replace(/\r/g, "");
+    var out = { verdict: null, rationale: "", type: null, domain: null, scores: {}, sections: {}, citations: null, parseOk: false };
+    var v = text.match(/^\s*VERDICT:\s*(PASS|BORDERLINE|FAIL)\b\s*(?:[—–-]+\s*)?(.*)$/m);
+    if (v) { out.verdict = v[1]; out.rationale = v[2].trim(); }
+    var t = text.match(/^\s*Question type:\s*([A-Za-z/ -]+)/m); if (t) out.type = t[1].trim();
+    var d = text.match(/^\s*Domain:\s*(D\d{2})\s*[—–-]+\s*([^·\n]+?)\s*(?:·\s*(.*))?$/m);
+    if (d) out.domain = { code: d[1], name: d[2].trim(), refs: (d[3] || "").trim() };
+    var re = /^\s*D([1-6])\b[^\n]*?\b([0-4])\s*\/\s*4\s*(?:[—–-]+\s*(.*))?$/gm, m;
+    while ((m = re.exec(text))) out.scores[m[1]] = { score: +m[2], phrase: (m[3] || "").trim() };
+    var cur = null;
+    text.split("\n").forEach(function (line) {
+      var s = line.trim();
+      if (/^Citations:/i.test(s)) { out.citations = /not verified/i.test(s) ? "not verified" : "verified"; cur = null; return; }
+      var hit = SECTION_KEYS.find(function (k) { return k[0].test(s); });
+      if (hit) { cur = hit[1]; out.sections[cur] = []; var rest = s.replace(hit[0], "").trim(); if (rest) out.sections[cur].push(rest.replace(/^[-•]\s*/, "")); return; }
+      if (!cur || !s) return;
+      if (/^(VERDICT|Question type|Domain|Dimension scores)\b/i.test(s) || /^D[1-6]\b/.test(s)) { cur = null; return; }
+      var arr = out.sections[cur];
+      if (/^[-•]\s+/.test(s)) arr.push(s.replace(/^[-•]\s+/, ""));
+      else if (arr.length) arr[arr.length - 1] += " " + s; else arr.push(s);
+    });
+    Object.keys(out.sections).forEach(function (k) { out.sections[k] = out.sections[k].filter(function (x) { return !/^(none( identified)?|already a (clear )?pass)\.?$/i.test(x.trim()); }); });
+    out.parseOk = !!out.verdict && Object.keys(out.scores).length === 6;
+    return out;
+  }
+
+  /* ---------- feedback rendering ---------- */
+  var DIMS = [["1", "Accuracy & safety", "Accuracy"], ["2", "Coverage", "Coverage"], ["3", "Synthesis", "Synthesis"], ["4", "Structure", "Structure"], ["5", "Economy", "Economy"], ["6", "Evidence", "Evidence"]];
+  var VCOL = { PASS: "var(--s1)", BORDERLINE: "var(--s2)", FAIL: "var(--s4)" };
+  var lvl = function (s) { return s >= 3 ? "var(--s1)" : s === 2 ? "var(--s2)" : "var(--s4)"; };
+  function renderSix(p) {
+    $("six").innerHTML = DIMS.map(function (d) {
+      var sc = p && p.scores[d[0]];
+      return '<div class="stat" title="' + esc(sc ? sc.phrase : "") + '"><div class="k">D' + d[0] + ' <span class="kl">' + d[1] + '</span><span class="ks">' + d[2] + '</span></div><div class="v"><span class="lvl" style="--lvl:' + (sc ? lvl(sc.score) : "var(--muted)") + '">' + (sc ? sc.score : "–") + '</span><span class="of">/4</span></div></div>';
+    }).join("");
+  }
+  var lastVerdict = null;
+  function renderHero(p, pending) {
+    var fb = $("fb"), total = 0, n = 0;
+    if (p) DIMS.forEach(function (d) { if (p.scores[d[0]]) { total += p.scores[d[0]].score; n++; } });
+    fb.style.setProperty("--stage", p && p.verdict ? VCOL[p.verdict] : "var(--s5)");
+    var frac = n ? total / 24 : 0;
+    $("arc").style.strokeDashoffset = (351.86 * (1 - frac)).toFixed(1);
+    if (n) FT.countUp($("total"), total, function (x) { return Math.round(x); }); else { $("total").textContent = "–"; $("total")._v = null; }
+    if (p && p.verdict) {
+      $("verdict").innerHTML = "<em>" + p.verdict + "</em>";
+      $("rationale").textContent = p.rationale ? p.rationale.charAt(0).toUpperCase() + p.rationale.slice(1) : "";
+      if (lastVerdict !== p.verdict) { FT.pulse($("dial")); $("sr").textContent = "Verdict: " + p.verdict + ". " + p.rationale; lastVerdict = p.verdict; }
+    } else if (pending) {
+      $("verdict").innerHTML = 'Examiner reading<span class="thinking"><i></i><i></i><i></i></span>';
+      $("rationale").textContent = S.meta && S.meta.verified ? "Checking your answer against the verified marking scheme for this question." : "Marking against the rubric. This question has no prepared scheme.";
+    }
+    var pills = "";
+    if (p && p.type) pills += '<span class="pill">' + esc(p.type) + "</span>";
+    if (p && p.domain) pills += '<span class="pill" title="' + esc(p.domain.name + (p.domain.refs ? " · " + p.domain.refs : "")) + '">' + esc(p.domain.code) + "</span>";
+    if (S.meta && S.meta.timeLabel) pills += '<span class="pill"' + (S.meta.over ? ' style="color:var(--s4)"' : "") + ">" + esc(S.meta.timeLabel) + "</span>";
+    if (S.meta && !S.meta.verified) pills += '<span class="pill unver">Citations not verified</span>';
+    $("pills").innerHTML = pills;
+  }
+  function citeify(s) {
+    return esc(s).replace(/\(([^()]*(?:Rutherford|ESVS|KDOQI|IWGDF|MET|Wind|Pellerito|ASUM|Fitridge|SVS|trial|Rec |Ch \d)[^()]*)\)/g, '<span class="cite">($1)</span>');
+  }
+  function list(items, color, empty) {
+    if (!items || !items.length) return '<p class="none">' + empty + "</p>";
+    return '<ul style="--lc:' + color + '">' + items.map(function (x) { return "<li>" + citeify(x) + "</li>"; }).join("") + "</ul>";
+  }
+  function renderBody() {
+    var p = S.parsed, sec = p ? p.sections : {}, f = S.sub, h = "";
+    var n = (sec.redFlags || []).length;
+    $("nflags").textContent = n ? n : "";
+    if (!S.raw && S.err) { $("fbody").innerHTML = '<p class="none">' + esc(S.err) + '</p><p><button class="btn" type="button" id="retry">Try again</button></p>'; $("retry").onclick = function () { if (!S.ctl) submit(); }; return; }
+    if (!S.raw) { $("fbody").innerHTML = S.ctl ? '<p class="none">The examiner is reading your answer and checking it against the marking scheme. Feedback streams in here, usually within a minute.</p>' : '<p class="none">Feedback appears here.</p>'; return; }
+    if (f === "full" || (p && !p.parseOk && !S.ctl)) {
+      h = (p && !p.parseOk && !S.ctl ? '<p class="none">The scores could not be read automatically, so the full feedback is shown.</p>' : "") + "<pre>" + esc(S.raw) + "</pre>";
+    } else if (f === "verdict") {
+      h = "<h4>Would change the verdict</h4>" + list(sec.change, "var(--s4)", S.ctl && !sec.change ? "Waiting for the examiner…" : "Nothing holding this answer back.") +
+          "<h4>To turn this into a pass</h4>" + list(sec.toPass, "var(--accent)", S.ctl && !sec.toPass ? "Waiting…" : "Already a pass.") +
+          "<h4>Defensible alternatives credited</h4>" + list(sec.alternatives, "var(--s1)", S.ctl && !sec.alternatives ? "Waiting…" : "None noted.");
+    } else if (f === "strengthen") {
+      h = "<h4>Dimensions</h4>" + (p && Object.keys(p.scores).length ? '<div class="dim">' + DIMS.map(function (d) { var sc = p.scores[d[0]]; return sc ? "<b>D" + d[0] + '</b><span class="s" style="--lvl:' + lvl(sc.score) + '">' + sc.score + "/4</span><span>" + citeify(sc.phrase) + "</span>" : ""; }).join("") + "</div>" : '<p class="none">Waiting…</p>') +
+          "<h4>Would strengthen</h4>" + list(sec.strengthen, "var(--s5)", S.ctl && !sec.strengthen ? "Waiting…" : "Nothing further.");
+    } else if (f === "flags") {
+      h = "<h4>Safety red flags</h4>" + list(sec.redFlags, "var(--s4)", S.ctl && !sec.redFlags ? "Waiting…" : "None identified.");
+    } else if (f === "sources") {
+      h = "<h4>Source notes</h4>" + list(sec.sources, "var(--s2)", S.ctl && !sec.sources ? "Waiting…" : "No figures differ from the source of truth.") +
+          (p && p.domain ? "<h4>Domain</h4><p>" + esc(p.domain.code + " — " + p.domain.name) + (p.domain.refs ? '<br><span class="cite">' + esc(p.domain.refs) + "</span>" : "") + "</p>" : "") +
+          "<h4>Citations</h4><p>" + (S.meta && S.meta.verified ? "Checked against a marking scheme built from Rutherford 11e and the scoped sources." : '<span style="color:var(--accent)">Not verified against the library.</span> This question has no prepared scheme, so citations are at chapter level from the examiner’s own knowledge.') + "</p>";
+    }
+    var body = $("fbody"), atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+    body.innerHTML = h;
+    if (f === "full" && S.ctl && atBottom) body.scrollTop = body.scrollHeight;
+  }
+  document.querySelectorAll("#fsub [data-f]").forEach(function (b) {
+    b.addEventListener("click", function () { setSub(b.dataset.f); $("fbody").scrollTop = 0; });
+  });
+  function setSub(f) { S.sub = f; document.querySelectorAll("#fsub [data-f]").forEach(function (x) { x.setAttribute("aria-selected", x.dataset.f === f); }); renderBody(); }
+
+  /* ---------- submit + stream ---------- */
+  $("submit").addEventListener("click", submit);
+  function submit() {
+    if ($("submit").disabled) return;
+    var answer = $("answer").value.trim();
+    var timed = S.mode !== "untimed" && elapsed() > 0;
+    var el = timed ? Math.round(elapsed()) : null;
+    pauseTimer();
+    var body = { answer: answer, timerMode: timed ? S.mode : "untimed", elapsedSeconds: el };
+    if (S.q.kind === "past") body.questionId = S.q.id; else body.questionText = S.q.text;
+    S.raw = ""; S.parsed = null; S.err = null; lastVerdict = null; S.startedAt = Date.now();
+    S.meta = { verified: S.q.kind === "past" && S.q.x.hasScheme, timeLabel: timed ? (S.mode === "countdown" ? (el > allowance() ? "Over by " + fmt(el - allowance()).replace("+", "") : fmt(el) + " used") : fmt(el) + " taken") : "", over: timed && S.mode === "countdown" && el > allowance() };
+    S.ctl = new AbortController(); updateSubmit();
+    $("copyfb").disabled = true; $("ftext").textContent = "";
+    renderHero(null, true); renderSix(null); setSub("full"); show("feedback");
+    var tickT = setInterval(function () { if (!S.raw && S.ctl) $("ftext").textContent = Math.round((Date.now() - S.startedAt) / 1000) + " s"; }, 1000);
+    fetch(API + "/api/mark", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: S.ctl.signal })
+      .then(function (r) {
+        if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw { api: true, code: j.error && j.error.code, message: (j.error && j.error.message) || "The marker is unavailable right now." }; });
+        return readSSE(r.body.getReader());
+      })
+      .catch(function (e) {
+        if (e && e.name === "AbortError") return;
+        failed(e && e.api ? e.message : "Could not reach the marker. Check your connection and try again. Your answer is kept.");
+      })
+      .then(function () { clearInterval(tickT); S.ctl = null; updateSubmit(); loadQuota(); renderBody(); });
+  }
+  function readSSE(reader) {
+    var dec = new TextDecoder(), buf = "", pending = 0;
+    function handle(ev, data) {
+      if (ev === "meta") { S.meta.verified = !!data.citationsVerified; renderHero(S.parsed, true); }
+      else if (ev === "status") { $("ftext").textContent = "Thinking · " + data.seconds + " s"; }
+      else if (ev === "text") {
+        S.raw += data.t;
+        if (!pending) pending = requestAnimationFrame(function () {
+          pending = 0; S.parsed = parseBlock(S.raw); renderHero(S.parsed, true); renderSix(S.parsed); renderBody();
+          if (S.ctl) $("ftext").textContent = "Writing feedback";
+        });
+      }
+      else if (ev === "summary") {
+        if (data.parseOk || !S.parsed || !S.parsed.parseOk) {
+          S.parsed = { verdict: data.verdict, rationale: data.rationale || "", type: data.type, domain: data.domain, scores: data.scores || {}, sections: data.sections || {}, citations: data.citations, parseOk: data.parseOk };
+        }
+        S.meta.verified = !!data.citationsVerified;
+      }
+      else if (ev === "done") {
+        $("ftext").textContent = "Marked in " + Math.round(data.ms / 1000) + " s";
+        finish();
+      }
+      else if (ev === "error") { failed(data.message, true); }
+    }
+    function pump() {
+      return reader.read().then(function (r) {
+        if (r.done) { if (S.ctl && !S.parsed) failed("The connection closed before any feedback arrived. Your answer is kept. Try again."); return; }
+        buf += dec.decode(r.value, { stream: true });
+        var i;
+        while ((i = buf.indexOf("\n\n")) >= 0) {
+          var chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+          var ev = "message", data = "";
+          chunk.split("\n").forEach(function (l) { if (l.indexOf("event:") === 0) ev = l.slice(6).trim(); else if (l.indexOf("data:") === 0) data += l.slice(5).trim(); });
+          if (data) { try { handle(ev, JSON.parse(data)); } catch (e) {} }
+        }
+        return pump();
+      });
+    }
+    return pump();
+  }
+  function finish() {
+    if (!S.parsed) S.parsed = parseBlock(S.raw);
+    renderHero(S.parsed, false); renderSix(S.parsed);
+    $("copyfb").disabled = !S.raw;
+    var sec = S.parsed.sections || {};
+    S.ctl = null;
+    setSub(!S.parsed.parseOk ? "full" : (sec.redFlags && sec.redFlags.length) ? "flags" : "verdict");
+    store.clear();
+  }
+  function failed(msg, keepText) {
+    var fb = $("fb");
+    if (!S.raw || !keepText) {
+      fb.style.setProperty("--stage", "var(--s5)");
+      $("verdict").textContent = "Not marked";
+      $("rationale").textContent = msg;
+      $("arc").style.strokeDashoffset = "351.86"; $("total").textContent = "–"; $("total")._v = null;
+      S.err = msg;
+    } else {
+      FT.toast("Connection dropped"); $("ftext").textContent = "Partial feedback";
+      $("copyfb").disabled = false;
+    }
+    $("sr").textContent = msg;
+  }
+
+  /* ---------- actions ---------- */
+  $("copyfb").addEventListener("click", function () {
+    var q = S.q ? (S.q.kind === "past" ? label(S.q.x) + "\n" + S.q.x.verbatim : S.q.text) : "";
+    FT.copy("QUESTION\n" + q + "\n\nFEX MARKER FEEDBACK\n" + S.raw.trim());
+  });
+  $("again").addEventListener("click", function () { show("answer"); });
+  $("newq").addEventListener("click", function () { resetAll(); show("question"); });
+  $("reset").addEventListener("click", function () {
+    var b = this; b.classList.add("spin"); setTimeout(function () { b.classList.remove("spin"); }, 450);
+    resetAll(); FT.toast("Cleared");
+  });
+  function resetAll() {
+    if (S.ctl) { try { S.ctl.abort(); } catch (e) {} S.ctl = null; }
+    $("answer").value = ""; $("ownq").value = ""; $("ownqn").textContent = "0 / 2,500"; $("useown").disabled = true;
+    S.q = null; S.raw = ""; S.parsed = null; S.meta = null; S.err = null; lastVerdict = null;
+    setMode("untimed"); stopTimer(true); renderStrip(); updateSubmit(); store.clear(); $("draft").hidden = true;
+    $("fb").style.setProperty("--stage", "var(--s5)");
+    $("verdict").textContent = "No answer marked yet"; $("rationale").textContent = "Choose a question, write your answer, then submit it for marking.";
+    $("pills").innerHTML = ""; $("arc").style.strokeDashoffset = "351.86"; $("total").textContent = "–"; $("total")._v = null;
+    $("ftext").textContent = ""; $("copyfb").disabled = true; renderSix(null); setSub("verdict");
+    S.topic = "All"; S.query = ""; $("search").value = ""; setSrc("past");
+    if (S.bank) { renderTopics(); renderList(); }
+  }
+
+  FT.fresh(resetAll);
+  renderSix(null); updateSubmit(); load(); loadQuota();
+  setTimeout(offerDraft, 400);
+})();
+</script>
+</body>
+</html>
