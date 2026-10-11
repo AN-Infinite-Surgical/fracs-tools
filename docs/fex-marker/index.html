@@ -26,13 +26,22 @@ body { height: 100dvh; overflow: hidden; }
 textarea.input { resize: none; }
 
 /* Question bank */
-.topics { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; flex: none; }
-.topics::-webkit-scrollbar { display: none; }
-.tp { flex: none; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 99px; padding: 4px 10px 4px 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; white-space: nowrap; transition: border-color .15s, background-color .15s, color .15s; }
-.tp i { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
-.tp b { font: 500 11px var(--f-mono); color: var(--muted); }
-.tp[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
-.tp:focus-visible, .q:focus-visible, .input:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+.filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: none; }
+.sel { position: relative; display: block; min-width: 0; }
+.sel select { appearance: none; -webkit-appearance: none; width: 100%; font: 600 13px var(--f-body); color: var(--muted); background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; padding: 7px 28px 7px 11px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: border-color .15s, background-color .15s, color .15s; }
+.sel select:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
+.sel select:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+.sel.on select { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.sel svg { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--muted); }
+.fstate { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px; flex: none; }
+.fpills { display: flex; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.fp { display: inline-flex; align-items: center; gap: 5px; border: 0; cursor: pointer; background: var(--accent-soft); color: var(--fg); border-radius: 99px; padding: 2px 9px; font-size: 12px; font-weight: 600; max-width: 180px; }
+.fp span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fp b { font-weight: 600; color: var(--accent); }
+.fp:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+.near { font-size: 12.5px; color: var(--muted); padding: 2px 2px 4px; }
+.empty .btn { margin-top: 10px; }
+.q:focus-visible, .input:focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
 .qlist { overflow-y: auto; display: grid; gap: 8px; align-content: start; padding: 2px; margin: -2px; overscroll-behavior: contain; }
 .q { text-align: left; border: 1.5px solid var(--line); background: var(--surface); border-radius: 12px; padding: 9px 12px 10px; cursor: pointer; display: grid; gap: 4px; transition: border-color .15s, transform .12s; }
 .q:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
@@ -144,11 +153,16 @@ textarea.input { resize: none; }
         <button type="button" id="src-past" aria-pressed="true">Past papers</button>
         <button type="button" id="src-own" aria-pressed="false">Your own</button>
       </div>
-      <div class="row"><span class="muted" id="qcount"></span><button class="ghost" id="random" type="button">Random</button></div>
+      <button class="ghost" id="random" type="button" title="Pick a random question from the current results">Random</button>
     </div>
     <div id="pane-past" class="col view-inner" style="display:flex;flex-direction:column;gap:10px;min-height:0;flex:1">
-      <input class="input" id="search" type="search" placeholder="Search questions, e.g. endoleak, HIT, 2023" aria-label="Search questions" autocomplete="off">
-      <div class="topics" id="topics" role="group" aria-label="Filter by topic"></div>
+      <input class="input" id="search" type="search" placeholder="Search any word, e.g. anurysm, endoleak, 2023" aria-label="Search questions" autocomplete="off" spellcheck="false">
+      <div class="filters" role="group" aria-label="Filter questions">
+        <label class="sel" id="w-topic"><span class="sr">Topic</span><select id="f-topic"></select><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></label>
+        <label class="sel" id="w-paper"><span class="sr">Paper</span><select id="f-paper"></select><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></label>
+        <label class="sel" id="w-type"><span class="sr">Type</span><select id="f-type"></select><svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></label>
+      </div>
+      <div class="fstate"><div class="fpills" id="fpills"></div><span class="muted" id="qcount"></span></div>
       <div class="qlist fill" id="qlist" role="list"></div>
     </div>
     <div id="pane-own" hidden style="display:flex;flex-direction:column;gap:10px;min-height:0;flex:1">
@@ -252,53 +266,160 @@ textarea.input { resize: none; }
   var MON = { April: "Apr", August: "Aug", September: "Sep" };
 
   /* ---------- state ---------- */
-  var S = { bank: null, topic: "All", query: "", src: "past", q: null, mode: "untimed", t0: null, acc: 0, running: false, locked: false, ctl: null, raw: "", parsed: null, sub: "verdict", startedAt: 0, meta: null };
+  var S = { bank: null, query: "", src: "past", q: null, mode: "untimed", t0: null, acc: 0, running: false, locked: false, ctl: null, raw: "", parsed: null, sub: "verdict", startedAt: 0, meta: null };
   var show = FT.tabs(function (v) { if (v === "answer") setTimeout(function () { if (!S.locked) $("answer").focus({ preventScroll: true }); }, 30); });
 
   /* ---------- question bank ---------- */
   function load() {
     fetch("bank.json", { cache: "no-cache" }).then(function (r) { return r.json(); }).then(function (b) {
-      S.bank = b; renderTopics(); renderList();
+      S.bank = b; indexBank(); renderFilters(); renderList();
     }).catch(function () { $("qlist").innerHTML = '<p class="empty">The question bank did not load. Refresh to try again, or paste your own question.</p>'; });
   }
-  function renderTopics() {
-    var t = S.bank.topics, keys = Object.keys(t).sort(function (a, b) { return t[b].count - t[a].count; });
-    var html = '<button class="tp" type="button" data-t="All" aria-pressed="true"><i style="--c:var(--fg)"></i>All<b>' + S.bank.questions.length + "</b></button>";
-    keys.forEach(function (k) { html += '<button class="tp" type="button" data-t="' + esc(k) + '" aria-pressed="false" title="' + esc(k) + '"><i style="--c:' + t[k].color + '"></i>' + esc(SHORT[k] || k) + "<b>" + t[k].count + "</b></button>"; });
-    $("topics").innerHTML = html;
+  /* ---------- forgiving search ---------- */
+  var STOP = {}; "a an and are as at be by for from how in into is it its of on or that the this to with your you what which when who why describe discuss outline explain list write notes short note give briefly including include patient patients year old man woman male female presents presenting".split(" ").forEach(function (w) { STOP[w] = 1; });
+  var ABBR = { aaa: "abdominal aortic aneurysm", raaa: "ruptured abdominal aortic aneurysm", taaa: "thoracoabdominal aortic aneurysm", evar: "endovascular aneurysm repair", tevar: "thoracic endovascular aortic repair", fevar: "fenestrated endovascular", cea: "carotid endarterectomy", cas: "carotid stenting", tcar: "transcarotid", tia: "transient ischemic attack", dvt: "deep vein thrombosis", pe: "pulmonary embolism", vte: "venous thromboembolism", hit: "heparin induced thrombocytopenia", clti: "chronic limb threatening ischemia", cli: "critical limb ischemia", pad: "peripheral arterial disease", ali: "acute limb ischemia", tos: "thoracic outlet syndrome", avf: "arteriovenous fistula", avg: "arteriovenous graft", svt: "superficial vein thrombosis", ivc: "inferior vena cava", sma: "superior mesenteric artery", ami: "acute mesenteric ischemia", cmi: "chronic mesenteric ischemia", ras: "renal artery stenosis", fmd: "fibromuscular dysplasia", dfu: "diabetic foot ulcer", gsv: "great saphenous vein", ssv: "small saphenous vein", sfj: "saphenofemoral junction", mm: "morbidity mortality", btai: "blunt thoracic aortic injury", sci: "spinal cord ischemia", abi: "ankle brachial index", ct: "computed tomography", cta: "computed tomography angiography", mra: "magnetic resonance angiography", us: "ultrasound", paes: "popliteal artery entrapment", gca: "giant cell arteritis", ckd: "chronic kidney disease", esrf: "end stage renal failure", rrt: "renal replacement therapy", nsaid: "anti inflammatory" };
+  function norm(w) {
+    w = w.toLowerCase().replace(/ae/g, "e").replace(/oe/g, "e");
+    if (w.length > 4) w = w.replace(/ies$/, "y").replace(/(?:es|s)$/, "");
+    return w;
   }
-  $("topics").addEventListener("click", function (e) {
-    var b = e.target.closest(".tp"); if (!b) return;
-    S.topic = b.dataset.t;
-    $("topics").querySelectorAll(".tp").forEach(function (x) { x.setAttribute("aria-pressed", x === b); });
-    renderList();
+  function wordsOf(t) { return t.toLowerCase().replace(/m\s*&\s*m/g, " mm ").replace(/[^a-z0-9]+/g, " ").trim().split(/\s+/).filter(Boolean); }
+  function tokensOf(t) {
+    var out = [];
+    wordsOf(t).forEach(function (w) {
+      out.push(norm(w));
+      if (ABBR[w]) ABBR[w].split(" ").forEach(function (x) { out.push(norm(x)); });
+    });
+    return out;
+  }
+  function dl(a, b, max) { /* Damerau-Levenshtein with early exit */
+    if (Math.abs(a.length - b.length) > max) return max + 1;
+    var d = [], i, j;
+    for (i = 0; i <= a.length; i++) { d[i] = [i]; }
+    for (j = 1; j <= b.length; j++) d[0][j] = j;
+    for (i = 1; i <= a.length; i++) {
+      var rowMin = 99;
+      for (j = 1; j <= b.length; j++) {
+        var c = a[i - 1] === b[j - 1] ? 0 : 1;
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + c);
+        if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) d[i][j] = Math.min(d[i][j], d[i - 2][j - 2] + 1);
+        rowMin = Math.min(rowMin, d[i][j]);
+      }
+      if (rowMin > max) return max + 1;
+    }
+    return d[a.length][b.length];
+  }
+  function indexBank() {
+    S.bank.questions.forEach(function (x) {
+      var all = tokensOf([x.verbatim, x.stem, (x.tags || []).join(" "), x.topic, SHORT[x.topic] || "", x.type || "", x.fmt, x.sitting, String(x.year)].join(" "));
+      x._tok = {}; all.forEach(function (t) { x._tok[t] = 1; });
+      x._list = Object.keys(x._tok);
+      x._stem = {}; tokensOf(x.stem).forEach(function (t) { x._stem[t] = 1; });
+    });
+  }
+  function wordScore(x, w) { /* best match of one query word against a question */
+    if (x._tok[w]) return x._stem[w] ? 4 : 3;
+    if (/^\d+$/.test(w)) return 0;
+    var best = 0, max = w.length >= 8 ? 2 : w.length >= 4 ? 1 : 0;
+    for (var i = 0; i < x._list.length; i++) {
+      var t = x._list[i];
+      if (w.length >= 3 && t.indexOf(w) === 0) { best = Math.max(best, 2); continue; }
+      if (w.length >= 4 && t.indexOf(w) > 0) { best = Math.max(best, 2); continue; }
+      if (max && best < 1 && dl(w, t, max) <= max) best = 1;
+    }
+    return best;
+  }
+  function termScore(x, term) { /* a term matches as itself or, for abbreviations, as all its expansion words */
+    var s = wordScore(x, term.w);
+    if (term.alt) { var m = 9; term.alt.forEach(function (a) { m = Math.min(m, wordScore(x, a)); }); if (m > s) s = m; }
+    return s;
+  }
+  function queryTerms(q) {
+    return wordsOf(q).filter(function (w) { return !STOP[w]; }).map(function (w) {
+      return { w: norm(w), alt: ABBR[w] ? ABBR[w].split(" ").map(norm) : null };
+    });
+  }
+  function search(list, q) { /* returns {hits:[...], near:bool} */
+    var terms = queryTerms(q);
+    if (!terms.length) return { hits: list.slice().sort(function (a, b) { return b.id - a.id; }), near: false };
+    var scored = list.map(function (x) {
+      var tot = 0, n = 0;
+      terms.forEach(function (t) { var v = termScore(x, t); if (v) { n++; tot += v; } });
+      return { x: x, n: n, s: tot };
+    }).filter(function (r) { return r.n > 0; });
+    var all = scored.filter(function (r) { return r.n === terms.length; });
+    var use = all.length ? all : scored;
+    use.sort(function (a, b) { return b.n - a.n || b.s - a.s || b.x.id - a.x.id; });
+    return { hits: use.slice(0, all.length ? use.length : 12).map(function (r) { return r.x; }), near: !all.length && use.length > 0 };
+  }
+
+  /* ---------- filters ---------- */
+  var F = { topic: "", paper: "", type: "" };
+  function renderFilters() {
+    var b = S.bank, t = b.topics;
+    var keys = Object.keys(t).sort(function (a, c) { return t[c].count - t[a].count; });
+    $("f-topic").innerHTML = '<option value="">All topics</option>' + keys.map(function (k) { var sh = SHORT[k] || k; return '<option value="' + esc(k) + '">' + esc(sh) + (sh !== k ? " · " + esc(k) : "") + " (" + t[k].count + ")</option>"; }).join("");
+    var years = {}; b.questions.forEach(function (x) { (years[x.year] = years[x.year] || {})[x.sitting] = 1; });
+    $("f-paper").innerHTML = '<option value="">All papers</option>' + Object.keys(years).sort().reverse().map(function (y) {
+      var sits = Object.keys(years[y]).sort(function (a, c) { return a === "April" ? -1 : c === "April" ? 1 : 0; });
+      return '<optgroup label="' + y + '">' + (sits.length > 1 ? '<option value="y:' + y + '">' + y + " · both sittings</option>" : "") +
+        sits.map(function (si) { return '<option value="s:' + y + " " + si + '">' + y + " " + si + "</option>"; }).join("") + "</optgroup>";
+    }).join("");
+    $("f-type").innerHTML = '<option value="">All types</option><option>Clinical</option><option>Technical</option><option>Professional</option><option value="Essay">Essay (4-part)</option>';
+    syncFilters();
+  }
+  function syncFilters() {
+    $("f-topic").value = F.topic; $("f-paper").value = F.paper; $("f-type").value = F.type;
+    $("w-topic").classList.toggle("on", !!F.topic); $("w-paper").classList.toggle("on", !!F.paper); $("w-type").classList.toggle("on", !!F.type);
+    var pills = [];
+    if (F.topic) pills.push(["topic", SHORT[F.topic] || F.topic]);
+    if (F.paper) pills.push(["paper", F.paper.slice(2)]);
+    if (F.type) pills.push(["type", F.type === "Essay" ? "Essays" : F.type]);
+    $("fpills").innerHTML = pills.map(function (p) { return '<button class="fp" type="button" data-f="' + p[0] + '" aria-label="Remove filter ' + esc(p[1]) + '"><span>' + esc(p[1]) + "</span><b>×</b></button>"; }).join("");
+  }
+  ["topic", "paper", "type"].forEach(function (k) {
+    $("f-" + k).addEventListener("change", function () { F[k] = this.value; syncFilters(); renderList(); });
   });
-  $("search").addEventListener("input", function () { S.query = this.value.trim().toLowerCase(); renderList(); });
+  $("fpills").addEventListener("click", function (e) { var b = e.target.closest(".fp"); if (!b) return; F[b.dataset.f] = ""; syncFilters(); renderList(); });
+  function passes(x) {
+    if (F.topic && x.topic !== F.topic) return false;
+    if (F.paper) { var v = F.paper.slice(2); if (F.paper[0] === "y" ? String(x.year) !== v : x.year + " " + x.sitting !== v) return false; }
+    if (F.type) { if (F.type === "Essay" ? x.fmt !== "Essay" : x.type !== F.type) return false; }
+    return true;
+  }
+  function clearFilters() { F.topic = F.paper = F.type = ""; syncFilters(); renderList(); }
+  var searchT = null;
+  $("search").addEventListener("input", function () { var v = this.value; clearTimeout(searchT); searchT = setTimeout(function () { S.query = v.trim(); renderList(); }, 80); });
   function filtered() {
-    if (!S.bank) return [];
-    var q = S.query;
-    return S.bank.questions.filter(function (x) {
-      if (S.topic !== "All" && x.topic !== S.topic) return false;
-      if (!q) return true;
-      return (x.stem + " " + x.verbatim + " " + (x.tags || []).join(" ") + " " + x.year + " " + x.sitting + " " + x.topic).toLowerCase().indexOf(q) >= 0;
-    }).sort(function (a, b) { return b.id - a.id; });
+    if (!S.bank) return { hits: [], near: false };
+    return search(S.bank.questions.filter(passes), S.query);
   }
   function label(x) { return x.year + " " + (MON[x.sitting] || x.sitting) + " · " + (x.fmt === "Essay" ? "Essay · " + x.parts + " parts" : "SAQ"); }
   function renderList() {
-    var list = filtered(), t = S.bank.topics;
-    $("qcount").textContent = list.length + " of " + S.bank.questions.length;
-    if (!list.length) { $("qlist").innerHTML = '<p class="empty">No questions match. Clear the search or pick another topic.</p>'; return; }
-    $("qlist").innerHTML = list.map(function (x) {
+    var r = filtered(), list = r.hits, t = S.bank.topics, total = S.bank.questions.length;
+    var filt = F.topic || F.paper || F.type;
+    $("qcount").textContent = (r.near ? "closest " + list.length : list.length + " of " + total);
+    if (!list.length) {
+      var other = filt && S.query ? search(S.bank.questions, S.query) : null;
+      var where = [F.topic && (SHORT[F.topic] || F.topic), F.paper && F.paper.slice(2), F.type].filter(Boolean).join(", ");
+      $("qlist").innerHTML = '<div class="empty">' + (other && other.hits.length
+        ? "No matches in " + esc(where) + ". " + other.hits.length + (other.near ? " close" : "") + " match" + (other.hits.length === 1 ? "" : "es") + " without filters."
+        : filt ? "No questions in " + esc(where) + (S.query ? " match that search." : ".") : "Nothing matches that search. Try fewer or shorter words.") +
+        (filt ? '<br><button class="btn" type="button" id="clearf">Clear filters</button>' : "") + "</div>";
+      var c = $("clearf"); if (c) c.onclick = clearFilters;
+      return;
+    }
+    $("qlist").innerHTML = (r.near ? '<p class="near">No question contains every word. Closest questions:</p>' : "") + list.map(function (x) {
       var on = S.q && S.q.id === x.id ? " on" : "";
       return '<button class="q' + on + '" type="button" role="listitem" data-id="' + x.id + '">' +
         '<span class="meta"><i style="--c:' + t[x.topic].color + '"></i>' + esc(label(x)) + ' · ' + esc(SHORT[x.topic] || x.topic) +
-        (x.hasScheme ? "" : ' <span class="tag">unverified</span>') + "</span>" +
+        (x.type ? " · " + esc(x.type) : "") + (x.hasScheme ? "" : ' <span class="tag">unverified</span>') + "</span>" +
         '<span class="stem">' + esc(x.stem) + "</span></button>";
     }).join("");
   }
   $("qlist").addEventListener("click", function (e) { var b = e.target.closest(".q"); if (b) openQ(+b.dataset.id, b); });
   $("random").addEventListener("click", function () {
-    var l = filtered(); if (!l.length) return;
+    var l = filtered().hits; if (!l.length) { FT.toast("No questions in the current filters"); return; }
     var x = l[Math.floor(Math.random() * l.length)]; openQ(x.id, $("random"));
   });
 
@@ -329,7 +450,7 @@ textarea.input { resize: none; }
     $("src-past").setAttribute("aria-pressed", s === "past"); $("src-own").setAttribute("aria-pressed", s === "own");
     $("pane-past").hidden = s !== "past"; $("pane-own").hidden = s !== "own";
     $("pane-past").style.display = s === "past" ? "flex" : "none"; $("pane-own").style.display = s === "own" ? "flex" : "none";
-    $("random").hidden = s !== "past"; $("qcount").hidden = s !== "past";
+    $("random").hidden = s !== "past";
     if (s === "own") setTimeout(function () { $("ownq").focus(); }, 20);
   }
   $("src-past").addEventListener("click", function () { setSrc("past"); });
@@ -731,8 +852,8 @@ textarea.input { resize: none; }
     $("verdict").textContent = "No answer marked yet"; $("rationale").textContent = "Choose a question, write your answer, then submit it for marking.";
     $("pills").innerHTML = ""; $("arc").style.strokeDashoffset = "351.86"; $("total").textContent = "–"; $("total")._v = null;
     $("ftext").textContent = ""; $("copyfb").disabled = true; $("dlword").disabled = true; renderSix(null); setSub("verdict");
-    S.topic = "All"; S.query = ""; $("search").value = ""; setSrc("past");
-    if (S.bank) { renderTopics(); renderList(); }
+    S.query = ""; $("search").value = ""; F.topic = F.paper = F.type = ""; setSrc("past");
+    if (S.bank) { syncFilters(); renderList(); }
   }
 
   FT.fresh(resetAll);
