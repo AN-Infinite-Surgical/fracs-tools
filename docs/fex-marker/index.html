@@ -130,6 +130,21 @@ textarea.input { resize: none; }
   .fb .actions { flex-wrap: nowrap; } .fb .actions button { white-space: nowrap; } .fb #ftext { display: none; }
   .six .stat .k .kl { display: none; } .six .stat .k .ks { display: inline; }
 }
+
+/* Header with a persistent Reset (visible on every tab) */
+.top { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "brand tabs reset"; align-items: center; column-gap: 10px; row-gap: 6px; }
+.top .brand { grid-area: brand; min-width: 0; } .top .tabs { grid-area: tabs; } .top .resetb { grid-area: reset; }
+.resetb { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; border: 1.5px solid var(--s4); background: color-mix(in oklab, var(--s4) 10%, var(--surface)); color: var(--s4); border-radius: 10px; padding: 6px 12px; font-weight: 700; font-size: 13px; white-space: nowrap; transition: background-color .15s, color .15s, transform .12s; }
+.resetb:hover { background: color-mix(in oklab, var(--s4) 18%, var(--surface)); }
+.resetb:active { transform: scale(.97); }
+.resetb:focus-visible { outline: 2.5px solid var(--s4); outline-offset: 2px; }
+.resetb.confirm { background: var(--s4); color: var(--surface); }
+.resetb.spin svg { transition: transform .45s ease; transform: rotate(-300deg); }
+@media (max-width: 600px) {
+  .top { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand reset" "tabs tabs"; }
+  .top .tabs { justify-self: stretch; display: flex; } .top .tabs button { flex: 1; }
+  .resetb { padding: 5px 10px; font-size: 12.5px; }
+}
 </style>
 </head>
 <body>
@@ -144,6 +159,7 @@ textarea.input { resize: none; }
       <button role="tab" data-view="answer" aria-selected="false">Answer</button>
       <button role="tab" data-view="feedback" aria-selected="false">Feedback</button>
     </div>
+    <button class="resetb" id="reset" type="button" title="Clear the question, answer, timer and feedback"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="rl">Reset</span></button>
   </header>
 
   <!-- Question -->
@@ -195,7 +211,7 @@ textarea.input { resize: none; }
     <div class="status"><span id="wc">0 words</span><span id="quota"></span></div>
     <p class="notice">Answers and feedback are saved anonymously to support research and improve the marker. No names are recorded.</p>
     <div class="actions flat">
-      <button class="ghost" id="reset" type="button"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6M3 2.5v2.8h2.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Reset</button>
+      <span></span>
       <button class="btn" id="submit" type="button" disabled>Submit for marking</button>
     </div>
   </section>
@@ -839,9 +855,18 @@ textarea.input { resize: none; }
   });
   $("again").addEventListener("click", function () { show("answer"); });
   $("newq").addEventListener("click", function () { resetAll(); show("question"); });
+  var resetArm = null;
+  function hasWork() { return !!(S.q || $("answer").value.trim() || $("ownq").value.trim() || S.raw || S.ctl || S.query || F.topic || F.paper || F.type || elapsed() > 0); }
+  function disarmReset() { clearTimeout(resetArm); resetArm = null; $("reset").classList.remove("confirm"); $("reset").querySelector(".rl").textContent = "Reset"; }
   $("reset").addEventListener("click", function () {
-    var b = this; b.classList.add("spin"); setTimeout(function () { b.classList.remove("spin"); }, 450);
-    resetAll(); FT.toast("Cleared");
+    var b = this;
+    if (!resetArm && hasWork() && !/^\s*$/.test($("answer").value + (S.raw || "")) ) {
+      b.classList.add("confirm"); b.querySelector(".rl").textContent = "Tap again to clear";
+      resetArm = setTimeout(disarmReset, 3000); return;
+    }
+    disarmReset();
+    b.classList.add("spin"); setTimeout(function () { b.classList.remove("spin"); }, 450);
+    resetAll(); show("question"); FT.toast("Cleared. Choose a question to start again");
   });
   function resetAll() {
     if (S.ctl) { try { S.ctl.abort(); } catch (e) {} S.ctl = null; }
